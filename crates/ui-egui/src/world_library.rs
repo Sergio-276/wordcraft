@@ -480,6 +480,31 @@ mod tests {
     }
 
     #[test]
+    fn map_image_reads_are_requested_only_once_while_pending() {
+        use super::{MapRecord, WorldLibraryBridge, WorldLibraryCommand, WorldLibraryState};
+        let bridge = WorldLibraryBridge::default();
+        let mut state = WorldLibraryState::default();
+        state.library.maps.push(MapRecord {
+            id: "map-1".into(),
+            image_asset_id: "map-image-1".into(),
+            ..MapRecord::default()
+        });
+        assert!(state.request_map_image(&bridge, "map-image-1").is_ok());
+        assert!(state.request_map_image(&bridge, "map-image-1").is_ok());
+        let commands = bridge.take_commands();
+        assert_eq!(commands.len(), 1);
+        let read = commands.into_iter().find_map(|command| match command {
+            WorldLibraryCommand::ReadAsset { request_id, asset_id } => Some((request_id, asset_id)),
+            _ => None,
+        });
+        assert!(read.is_some());
+        if let Some((request_id, asset_id)) = read {
+            assert_eq!(state.pending_map_image_reads.get(&request_id), Some(&asset_id));
+            assert_eq!(asset_id, "map-image-1");
+        }
+    }
+
+    #[test]
     fn map_image_write_tracks_the_target_map_until_storage_completes() {
         use super::{MapRecord, WorldLibraryBridge, WorldLibraryCommand, WorldLibraryState};
         let bridge = WorldLibraryBridge::default();
