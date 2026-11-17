@@ -85,7 +85,7 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
     // Keep map image imports on their own host queue: they must never enter the document.
     if let Some(inbox) = &app.services.world_library_image_inbox {
         let picked = inbox.lock().unwrap_or_else(|error| error.into_inner()).drain(..).collect::<Vec<_>>();
-        for (_name, bytes) in picked {
+        for (name, bytes) in picked {
             let target = app.world_library.pending_map_image_for.take().map(|id| ("map", id))
                 .or_else(|| app.world_library.pending_point_image_for.take().map(|id| ("point", id)))
                 .or_else(|| app.world_library.pending_character_image_for.take().map(|id| ("character", id)));
@@ -94,6 +94,9 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                 continue;
             };
             if bytes.is_empty() {
+                if let Some(error) = name.strip_prefix("error:") {
+                    app.world_library.error = Some(error.to_owned());
+                }
                 continue;
             }
             if let Some(bridge) = app.services.world_library.clone() {
