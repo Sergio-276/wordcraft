@@ -153,7 +153,7 @@ pub struct CharacterRecord {
 
 #[cfg(test)]
 mod tests {
-    use super::{CharacterRecord, MapRecord, PointOfInterest, WorldLibrary, LIBRARY_VERSION};
+    use super::{CharacterRecord, MapRecord, PointOfInterest, WorldLibrary, LIBRARY_VERSION, MAX_LIBRARY_JSON_BYTES};
 
     #[test]
     fn library_round_trips_as_versioned_json() {
@@ -191,6 +191,40 @@ mod tests {
                 assert!(decoded.validate().is_ok());
             }
         }
+    }
+
+    #[test]
+    fn validated_storage_serialization_round_trips() {
+        let mut library = WorldLibrary::new();
+        library.maps.push(MapRecord {
+            id: "map-1".into(),
+            name: "Map".into(),
+            image_asset_id: "asset-map".into(),
+            ..MapRecord::default()
+        });
+        let encoded = library.to_json_bytes();
+        assert!(encoded.is_ok());
+        if let Ok(encoded) = encoded {
+            let decoded = WorldLibrary::from_json_bytes(&encoded);
+            assert_eq!(decoded, Ok(library));
+        }
+    }
+
+    #[test]
+    fn storage_deserialization_rejects_oversized_metadata() {
+        let bytes = vec![b' '; MAX_LIBRARY_JSON_BYTES + 1];
+        assert!(WorldLibrary::from_json_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn storage_serialization_rejects_invalid_asset_ids() {
+        let mut library = WorldLibrary::new();
+        library.maps.push(MapRecord {
+            id: "map-1".into(),
+            image_asset_id: " asset-map ".into(),
+            ..MapRecord::default()
+        });
+        assert!(library.to_json_bytes().is_err());
     }
 
     #[test]
