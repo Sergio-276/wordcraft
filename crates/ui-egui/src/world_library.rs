@@ -290,7 +290,7 @@ pub struct WorldLibraryState {
     next_request_id: u64,
     load_requested: bool,
     pending_load: Option<u64>,
-    pending_save: Option<u64>,
+    pending_saves: std::collections::BTreeSet<u64>,
     pub workspace_open: bool,
     pub section: LibrarySection,
     pub character_name: String,
@@ -313,7 +313,7 @@ impl Default for WorldLibraryState {
             next_request_id: 1,
             load_requested: false,
             pending_load: None,
-            pending_save: None,
+            pending_saves: std::collections::BTreeSet::new(),
             workspace_open: false,
             section: LibrarySection::Maps,
             character_name: String::new(),
@@ -346,8 +346,7 @@ impl WorldLibraryState {
             self.load_requested = true;
         }
         for completion in bridge.take_completions() {
-            if self.pending_save == Some(completion.request_id) {
-                self.pending_save = None;
+            if self.pending_saves.remove(&completion.request_id) {
                 if let Err(error) = completion.result {
                     self.error = Some(error);
                 } else {
@@ -381,7 +380,7 @@ impl WorldLibraryState {
         let bytes = self.library.to_json_bytes()?;
         let request_id = self.request_id();
         bridge.save_metadata(request_id, bytes)?;
-        self.pending_save = Some(request_id);
+        self.pending_saves.insert(request_id);
         Ok(())
     }
 }
