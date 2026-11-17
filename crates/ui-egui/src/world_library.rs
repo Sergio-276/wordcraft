@@ -381,6 +381,41 @@ mod tests {
         assert!(bridge.take_commands().is_empty());
     }
 
+
+    #[test]
+    fn library_state_loads_host_metadata_and_tracks_save_completion() {
+        use super::{WorldLibrary, WorldLibraryBridge, WorldLibraryState, WorldLibraryCompletion};
+        let bridge = WorldLibraryBridge::default();
+        let mut state = WorldLibraryState::default();
+        state.tick(Some(&bridge));
+        assert_eq!(bridge.take_commands(), vec![super::WorldLibraryCommand::LoadMetadata { request_id: 1 }]);
+
+        let mut library = WorldLibrary::new();
+        library.characters.push(super::CharacterRecord {
+            id: "character-1".into(),
+            name: "Ariadne".into(),
+            description: String::new(),
+            portrait_asset_id: None,
+        });
+        let bytes = library.to_json_bytes().unwrap_or_default();
+        bridge.complete(WorldLibraryCompletion { request_id: 1, result: Ok(Some(bytes)) });
+        state.tick(Some(&bridge));
+        assert!(state.loaded);
+        assert_eq!(state.library.characters.len(), 1);
+
+        assert!(state.save(&bridge).is_ok());
+        let commands = bridge.take_commands();
+        let save_id = match commands.first() {
+            Some(super::WorldLibraryCommand::SaveMetadata { request_id, .. }) => *request_id,
+            _ => 0,
+        };
+        assert_ne!(save_id, 0);
+        bridge.complete(WorldLibraryCompletion { request_id: save_id, result: Ok(None) });
+        state.tick(Some(&bridge));
+        assert!(state.pending_save.is_none());
+        assert!(state.error.is_none());
+    }
+
     #[test]
     fn library_round_trips_as_versioned_json() {
         let mut library = WorldLibrary::new();
