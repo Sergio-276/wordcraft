@@ -178,6 +178,104 @@ pub struct CharacterRecord {
     pub portrait_asset_id: Option<String>,
 }
 
+
+/// Maximum size of one binary image asset accepted by the host storage bridge (64 MiB).
+pub const MAX_LIBRARY_ASSET_BYTES: usize = 64 * 1024 * 1024;
+
+/// Operations requested by the shared UI and executed by the platform host.
+#[derive(Debug, PartialEq, Eq)]
+pub enum WorldLibraryCommand {
+    LoadMetadata { request_id: u64 },
+    SaveMetadata { request_id: u64, bytes: Vec<u8> },
+    ReadAsset { request_id: u64, asset_id: String },
+    WriteAsset { request_id: u64, asset_id: String, bytes: Vec<u8> },
+    DeleteAsset { request_id: u64, asset_id: String },
+}
+
+/// Result returned by a platform host. Bytes are present for metadata loads and asset reads.
+#[derive(Debug, PartialEq, Eq)]
+pub struct WorldLibraryCompletion {
+    pub request_id: u64,
+    pub result: Result<Option<Vec<u8>>, String>,
+}
+
+/// Cloneable, non-blocking bridge between the platform host and the shared UI.
+///
+/// The UI enqueues commands and drains completions. Hosts drain commands, perform their native
+/// or asynchronous storage work, then post a completion with the same request ID.
+#[derive(Clone, Default)]
+pub struct WorldLibraryBridge {
+    commands: std::sync::Arc<std::sync::Mutex<Vec<WorldLibraryCommand>>>,
+    completions: std::sync::Arc<std::sync::Mutex<Vec<WorldLibraryCompletion>>>,
+}
+
+impl WorldLibraryBridge {
+    /// Queue a metadata load.
+    pub fn load_metadata(&self, request_id: u64) {
+        self.enqueue(WorldLibraryCommand::LoadMetadata { request_id });
+    }
+
+    /// Queue validated metadata for persistence.
+    pub fn save_metadata(&self, request_id: u64, bytes: Vec<u8>) -> Result<(), String> {
+        if bytes.len() > MAX_LIBRARY_JSON_BYTES {
+            return Err("World library metadata exceeds its size limit".into());
+        }
+        WorldLibrary::from_json_bytes(&bytes)?;
+        self.enqueue(WorldLibraryCommand::SaveMetadata { request_id, bytes });
+        Ok(())
+    }
+
+    /// Queue an asset read.
+    pub fn read_asset(&self, request_id: u64, asset_id: String) -> Result<(), String> {
+        validate_asset_id(&asset_id)?;
+        self.enqueue(WorldLibraryCommand::ReadAsset { request_id, asset_id });
+        Ok(())
+    }
+
+    /// Queue an asset write.
+    pub fn write_asset(&self, request_id: u64, asset_id: String, bytes: Vec<u8>) -> Result<(), String> {
+        validate_asset_id(&asset_id)?;
+        if bytes.is_empty() || bytes.len() > MAX_LIBRARY_ASSET_BYTES {
+            return Err(format!("Library assets must be between 1 and {MAX_LIBRARY_ASSET_BYTES} bytes"));
+        }
+        self.enqueue(WorldLibraryCommand::WriteAsset { request_id, asset_id, bytes });
+        Ok(())
+    }
+
+    /// Queue deletion of an asset.
+    pub fn delete_asset(&self, request_id: u64, asset_id: String) -> Result<(), String> {
+        validate_asset_id(&asset_id)?;
+        self.enqueue(WorldLibraryCommand::DeleteAsset { request_id, asset_id });
+        Ok(())
+    }
+
+    /// Host-side: take all currently queued operations.
+    pub fn take_commands(&self) -> Vec<WorldLibraryCommand> {
+        self.commands.lock().unwrap_or_else(|error| error.into_inner()).drain(..).collect()
+    }
+
+    /// Host-side: publish the outcome of an operation.
+    pub fn complete(&self, completion: WorldLibraryCompletion) {
+        self.completions.lock().unwrap_or_else(|error| error.into_inner()).push(completion);
+    }
+
+    /// UI-side: take all completed operations.
+    pub fn take_completions(&self) -> Vec<WorldLibraryCompletion> {
+        self.completions.lock().unwrap_or_else(|error| error.into_inner()).drain(..).collect()
+    }
+
+    fn enqueue(&self, command: WorldLibraryCommand) {
+        self.commands.lock().unwrap_or_else(|error| error.into_inner()).push(command);
+    }
+}
+
+fn validate_asset_id(asset_id: &str) -> Result<(), String> {
+    if asset_id.is_empty() || asset_id.trim() != asset_id || asset_id.contains('/') || asset_id.contains('\\\\') || asset_id == "." || asset_id == ".." {
+        return Err("Library asset IDs must be non-empty canonical file names".into());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{CharacterRecord, MapRecord, PointOfInterest, WorldLibrary, LIBRARY_VERSION, MAX_LIBRARY_JSON_BYTES};
