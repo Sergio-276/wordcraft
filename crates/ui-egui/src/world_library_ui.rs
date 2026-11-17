@@ -371,6 +371,24 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                 changed |= ui.add(egui::TextEdit::multiline(&mut point.description).desired_rows(2)).changed();
                                 changed |= ui.add(egui::Slider::new(&mut point.x, 0.0..=1.0).text("Horizontal")).changed();
                                 changed |= ui.add(egui::Slider::new(&mut point.y, 0.0..=1.0).text("Vertical")).changed();
+                                let point_id = point.id.clone();
+                                ui.horizontal(|ui| {
+                                    ui.label(format!("Images: {}", point.image_asset_ids.len()));
+                                    if ui.add_enabled(
+                                        app.world_library.pending_map_image_for.is_none()
+                                            && app.world_library.pending_point_image_for.is_none()
+                                            && app.world_library.pending_character_image_for.is_none(),
+                                        egui::Button::new("Attach image"),
+                                    ).clicked() {
+                                        app.world_library.pending_point_image_for = Some(point_id);
+                                        if let Some(picker) = &app.services.world_library_image_picker {
+                                            picker();
+                                        } else {
+                                            app.world_library.pending_point_image_for = None;
+                                            app.world_library.error = Some("Image import is unavailable on this platform.".into());
+                                        }
+                                    }
+                                });
                             });
                         }
                         if let Some(index) = remove {
@@ -413,6 +431,24 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                     }
                                 });
                                 changed |= ui.add(egui::TextEdit::multiline(&mut character.description).desired_rows(2)).changed();
+                                let character_id = character.id.clone();
+                                ui.horizontal(|ui| {
+                                    ui.label(if character.portrait_asset_id.is_some() { "Portrait stored" } else { "No portrait" });
+                                    if ui.add_enabled(
+                                        app.world_library.pending_map_image_for.is_none()
+                                            && app.world_library.pending_point_image_for.is_none()
+                                            && app.world_library.pending_character_image_for.is_none(),
+                                        egui::Button::new(if character.portrait_asset_id.is_some() { "Replace portrait" } else { "Add portrait" }),
+                                    ).clicked() {
+                                        app.world_library.pending_character_image_for = Some(character_id);
+                                        if let Some(picker) = &app.services.world_library_image_picker {
+                                            picker();
+                                        } else {
+                                            app.world_library.pending_character_image_for = None;
+                                            app.world_library.error = Some("Image import is unavailable on this platform.".into());
+                                        }
+                                    }
+                                });
                             });
                         }
                         if let Some(index) = remove {
