@@ -40,9 +40,9 @@ fn show_map_preview(
     draft_position: Option<(f32, f32)>,
 ) -> Option<(f32, f32)> {
     let source = texture.size_vec2();
-    let width = ui.available_width().clamp(180.0, 960.0);
-    let height = (width * source.y / source.x.max(1.0)).min(560.0).max(120.0);
-    let size = egui::vec2(width, height);
+    let max_size = egui::vec2(ui.available_width().min(960.0).max(1.0), 560.0);
+    let scale = (max_size.x / source.x.max(1.0)).min(max_size.y / source.y.max(1.0));
+    let size = source * scale;
     let (rect, response) = ui.allocate_exact_size(size, if allow_placement { egui::Sense::click() } else { egui::Sense::hover() });
     ui.painter().image(
         texture.id(),
