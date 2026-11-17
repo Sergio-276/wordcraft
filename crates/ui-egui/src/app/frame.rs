@@ -79,6 +79,19 @@ impl WordApp {
     pub(super) fn paint_window(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, t: theme::Tokens) {
         let window = self.windows.shown();
         let moved = |app: &WordApp| app.windows.shown() != window;
+        if self.world_library.workspace_open {
+            crate::world_library_ui::show(self, ui);
+            return;
+        }
+        ui.horizontal(|ui| {
+            if ui.button("World library").clicked() {
+                self.world_library.workspace_open = true;
+            }
+        });
+        if self.world_library.workspace_open {
+            crate::world_library_ui::show(self, ui);
+            return;
+        }
         if self.ui.backstage {
             backstage::show(self, ui);
         } else if !self.has_document() {
