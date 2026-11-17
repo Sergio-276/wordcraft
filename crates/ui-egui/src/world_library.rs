@@ -560,6 +560,48 @@ mod tests {
     }
 
     #[test]
+    fn point_image_write_tracks_the_point_until_storage_completes() {
+        use super::{PointOfInterest, WorldLibraryBridge, WorldLibraryCommand, WorldLibraryState};
+        let bridge = WorldLibraryBridge::default();
+        let mut state = WorldLibraryState::default();
+        state.library.points.push(PointOfInterest { id: "point-1".into(), ..PointOfInterest::default() });
+        let png_header = vec![0x89, 80, 78, 71, 13, 10, 26, 10];
+        assert!(state.write_point_image(&bridge, "point-1".into(), png_header).is_ok());
+        let commands = bridge.take_commands();
+        assert_eq!(commands.len(), 1);
+        let write = commands.into_iter().find_map(|command| match command {
+            WorldLibraryCommand::WriteAsset { request_id, asset_id, .. } => Some((request_id, asset_id)),
+            _ => None,
+        });
+        assert!(write.is_some());
+        if let Some((request_id, asset_id)) = write {
+            assert!(asset_id.starts_with("point-image-"));
+            assert_eq!(state.pending_point_image_writes.get(&request_id), Some(&("point-1".into(), asset_id)));
+        }
+    }
+
+    #[test]
+    fn character_image_write_tracks_the_character_until_storage_completes() {
+        use super::{CharacterRecord, WorldLibraryBridge, WorldLibraryCommand, WorldLibraryState};
+        let bridge = WorldLibraryBridge::default();
+        let mut state = WorldLibraryState::default();
+        state.library.characters.push(CharacterRecord { id: "character-1".into(), ..CharacterRecord::default() });
+        let png_header = vec![0x89, 80, 78, 71, 13, 10, 26, 10];
+        assert!(state.write_character_image(&bridge, "character-1".into(), png_header).is_ok());
+        let commands = bridge.take_commands();
+        assert_eq!(commands.len(), 1);
+        let write = commands.into_iter().find_map(|command| match command {
+            WorldLibraryCommand::WriteAsset { request_id, asset_id, .. } => Some((request_id, asset_id)),
+            _ => None,
+        });
+        assert!(write.is_some());
+        if let Some((request_id, asset_id)) = write {
+            assert!(asset_id.starts_with("character-image-"));
+            assert_eq!(state.pending_character_image_writes.get(&request_id), Some(&("character-1".into(), asset_id)));
+        }
+    }
+
+    #[test]
     fn map_image_write_rejects_non_image_bytes() {
         use super::{MapRecord, WorldLibraryBridge, WorldLibraryState};
         let bridge = WorldLibraryBridge::default();
