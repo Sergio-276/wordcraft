@@ -294,10 +294,14 @@ pub struct WorldLibraryState {
     /// Asset-operation completions are retained for the UI instead of being discarded by tick.
     asset_completions: Vec<WorldLibraryCompletion>,
     pub(super) pending_map_image_writes: std::collections::BTreeMap<u64, (String, String)>,
+    pub(super) pending_point_image_writes: std::collections::BTreeMap<u64, (String, String)>,
+    pub(super) pending_character_image_writes: std::collections::BTreeMap<u64, (String, String)>,
     pub(super) pending_map_image_reads: std::collections::BTreeMap<u64, String>,
     pub(super) map_image_bytes: std::collections::BTreeMap<String, Vec<u8>>,
     requested_map_image_assets: std::collections::BTreeSet<String>,
     pub pending_map_image_for: Option<String>,
+    pub pending_point_image_for: Option<String>,
+    pub pending_character_image_for: Option<String>,
     pub workspace_open: bool,
     pub section: LibrarySection,
     pub character_name: String,
@@ -323,10 +327,14 @@ impl Default for WorldLibraryState {
             pending_saves: std::collections::BTreeSet::new(),
             asset_completions: Vec::new(),
             pending_map_image_writes: std::collections::BTreeMap::new(),
+            pending_point_image_writes: std::collections::BTreeMap::new(),
+            pending_character_image_writes: std::collections::BTreeMap::new(),
             pending_map_image_reads: std::collections::BTreeMap::new(),
             map_image_bytes: std::collections::BTreeMap::new(),
             requested_map_image_assets: std::collections::BTreeSet::new(),
             pending_map_image_for: None,
+            pending_point_image_for: None,
+            pending_character_image_for: None,
             workspace_open: false,
             section: LibrarySection::Maps,
             character_name: String::new(),
@@ -419,6 +427,32 @@ impl WorldLibraryState {
         let request_id = self.request_id();
         bridge.write_asset(request_id, asset_id.clone(), bytes)?;
         self.pending_map_image_writes.insert(request_id, (map_id, asset_id));
+        Ok(())
+    }
+
+    /// Queue an image write for a point of interest.
+    pub fn write_point_image(&mut self, bridge: &WorldLibraryBridge, point_id: String, bytes: Vec<u8>) -> Result<(), String> {
+        if !self.library.points.iter().any(|point| point.id == point_id) {
+            return Err("The selected point of interest no longer exists.".into());
+        }
+        validate_map_image_bytes(&bytes)?;
+        let asset_id = format!("point-image-{}", self.next_request_id);
+        let request_id = self.request_id();
+        bridge.write_asset(request_id, asset_id.clone(), bytes)?;
+        self.pending_point_image_writes.insert(request_id, (point_id, asset_id));
+        Ok(())
+    }
+
+    /// Queue an image write for a character portrait.
+    pub fn write_character_image(&mut self, bridge: &WorldLibraryBridge, character_id: String, bytes: Vec<u8>) -> Result<(), String> {
+        if !self.library.characters.iter().any(|character| character.id == character_id) {
+            return Err("The selected character no longer exists.".into());
+        }
+        validate_map_image_bytes(&bytes)?;
+        let asset_id = format!("character-image-{}", self.next_request_id);
+        let request_id = self.request_id();
+        bridge.write_asset(request_id, asset_id.clone(), bytes)?;
+        self.pending_character_image_writes.insert(request_id, (character_id, asset_id));
         Ok(())
     }
 
