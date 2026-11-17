@@ -13,6 +13,39 @@ fn new_id(prefix: &str) -> String {
 
 pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
     let mut changed = false;
+
+    // Keep map image imports on their own host queue: they must never enter the document.
+    if let Some(inbox) = &app.services.world_library_image_inbox {
+        let picked = inbox.lock().unwrap_or_else(|error| error.into_inner()).drain(..).collect::<Vec<_>>();
+        for (_name, bytes) in picked {
+            let Some(map_id) = app.world_library.pending_map_image_for.take() else {
+                app.world_library.error = Some("Choose a map before importing its image.".into());
+                continue;
+            };
+            if let Some(bridge) = app.services.world_library.clone() {
+                if let Err(error) = app.world_library.write_map_image(&bridge, map_id, bytes) {
+                    app.world_library.error = Some(error);
+                }
+            } else {
+                app.world_library.error = Some("Persistent library storage is unavailable.".into());
+            }
+        }
+    }
+
+    let completions = app.world_library.take_asset_completions();
+    for completion in completions {
+        if let Some((map_id, asset_id)) = app.world_library.pending_map_image_writes.remove(&completion.request_id) {
+            match completion.result {
+                Ok(_) => {
+                    if let Some(map) = app.world_library.library.maps.iter_mut().find(|map| map.id == map_id) {
+                        map.image_asset_id = asset_id;
+                        changed = true;
+                    }
+                }
+                Err(error) => app.world_library.error = Some(error),
+            }
+        }
+    }
     ui.vertical(|ui| {
         ui.horizontal(|ui| {
             ui.heading("World library");
@@ -77,8 +110,19 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                     }
                                 });
                                 changed |= ui.add(egui::TextEdit::multiline(&mut map.description).desired_rows(2)).changed();
+                                let map_id = map.id.clone();
+                                if ui.button(if map.image_asset_id.is_empty() { "Import map image" } else { "Replace map image" }).clicked() {
+                                    app.world_library.pending_map_image_for = Some(map_id);
+                                    if let Some(picker) = &app.services.world_library_image_picker {
+                                        picker();
+                                    } else {
+                                        app.world_library.error = Some("Map image import is unavailable on this platform.".into());
+                                    }
+                                }
                                 if map.image_asset_id.is_empty() {
                                     ui.weak("No map image imported yet.");
+                                } else {
+                                    ui.weak("Map image stored.");
                                 }
                             });
                         }
