@@ -228,16 +228,26 @@ mod tests {
     }
 
     #[test]
+    fn storage_deserialization_rejects_malformed_json() {
+        assert!(WorldLibrary::from_json_bytes(b"{not-json").is_err());
+    }
+
+    #[test]
+    fn storage_deserialization_rejects_unsupported_versions() {
+        assert!(WorldLibrary::from_json_bytes(br#"{"version":99}"#).is_err());
+    }
+
+    #[test]
     fn validation_rejects_ids_with_surrounding_whitespace() {
         let mut library = WorldLibrary::new();
-        library.maps.push(MapRecord { id: " map-1 ".into(), ..MapRecord::default() });
+        library.maps.push(MapRecord { id: " map-1 ".into(), image_asset_id: "asset-map".into(), ..MapRecord::default() });
         assert!(library.validate().is_err());
     }
 
     #[test]
     fn validation_rejects_points_outside_their_map() {
         let mut library = WorldLibrary::new();
-        library.maps.push(MapRecord { id: "map-1".into(), ..MapRecord::default() });
+        library.maps.push(MapRecord { id: "map-1".into(), image_asset_id: "asset-map".into(), ..MapRecord::default() });
         library.points.push(PointOfInterest {
             id: "poi-1".into(),
             map_id: "map-1".into(),
