@@ -230,6 +230,33 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                 ui.selectable_value(&mut app.world_library.point_map_id, Some(map.id.clone()), &map.name);
                             }
                         });
+                    let selected_map = app.world_library.point_map_id.as_ref()
+                        .and_then(|id| app.world_library.library.maps.iter().find(|map| &map.id == id))
+                        .cloned();
+                    if let Some(map) = selected_map {
+                        if map.image_asset_id.is_empty() {
+                            ui.weak("Import a background image for this map in the Maps section.");
+                        } else if let Some(bytes) = app.world_library.map_image_bytes.get(&map.image_asset_id).cloned() {
+                            let points = app.world_library.library.points.iter()
+                                .filter(|point| point.map_id == map.id)
+                                .cloned()
+                                .collect::<Vec<_>>();
+                            if let Some(texture) = map_texture(ui.ctx(), &map.image_asset_id, &bytes) {
+                                ui.label("Map preview — click the map to position the new point.");
+                                if let Some((x, y)) = show_map_preview(ui, &texture, &points, true) {
+                                    app.world_library.point_x = x;
+                                    app.world_library.point_y = y;
+                                }
+                            } else {
+                                ui.colored_label(ui.visuals().error_fg_color, "This map image could not be decoded.");
+                            }
+                        } else {
+                            ui.horizontal(|ui| {
+                                ui.spinner();
+                                ui.weak("Loading map image…");
+                            });
+                        }
+                    }
                     ui.label("Name");
                     ui.text_edit_singleline(&mut app.world_library.point_name);
                     ui.label("Description");
