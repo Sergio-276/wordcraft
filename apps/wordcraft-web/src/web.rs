@@ -12,6 +12,7 @@ use wordcraft_ui_egui::{Inbox, Services, WordApp};
 const DOC_EXTS: &[&str] =
     &["docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "ott", "fodt", "rtf", "txt", "md", "html", "htm", "mht", "mhtml", "tex", "json", "xml"];
 const IMAGE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "wmf", "emf"];
+const MAP_IMAGE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp"];
 const RECIPIENT_EXTS: &[&str] = wordcraft_engine::cmd::mailings::RECIPIENT_EXTENSIONS;
 mod font_store;
 mod world_library_store;
@@ -271,7 +272,9 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
         open_async: Some(Box::new(move |purpose: &str| {
             let inbox = if purpose == "world_library_image" { open_library_image_inbox.clone() } else { open_inbox.clone() };
             let ctx = ctx.clone();
-            let dialog = if purpose == "picture" || purpose == "world_library_image" {
+            let dialog = if purpose == "world_library_image" {
+                rfd::AsyncFileDialog::new().add_filter("Map images", MAP_IMAGE_EXTS)
+            } else if purpose == "picture" {
                 rfd::AsyncFileDialog::new().add_filter("Pictures", IMAGE_EXTS)
             } else if purpose == "font" {
                 rfd::AsyncFileDialog::new().add_filter("Fonts", wordcraft_fonts::FONT_FILE_EXTS)
@@ -309,7 +312,7 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
         world_library_image_picker: Some(Box::new(move || {
             let inbox = picker_library_image_inbox.clone();
             let ctx = picker_ctx.clone();
-            let dialog = rfd::AsyncFileDialog::new().add_filter("Pictures", IMAGE_EXTS);
+            let dialog = rfd::AsyncFileDialog::new().add_filter("Map images", MAP_IMAGE_EXTS);
             wasm_bindgen_futures::spawn_local(async move {
                 if let Some(file) = dialog.pick_file().await {
                     let bytes = file.read().await;
