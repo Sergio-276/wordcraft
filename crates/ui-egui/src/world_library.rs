@@ -291,6 +291,8 @@ pub struct WorldLibraryState {
     load_requested: bool,
     pending_load: Option<u64>,
     pending_saves: std::collections::BTreeSet<u64>,
+    /// Asset-operation completions are retained for the UI instead of being discarded by tick.
+    asset_completions: Vec<WorldLibraryCompletion>,
     pub workspace_open: bool,
     pub section: LibrarySection,
     pub character_name: String,
@@ -314,6 +316,7 @@ impl Default for WorldLibraryState {
             load_requested: false,
             pending_load: None,
             pending_saves: std::collections::BTreeSet::new(),
+            asset_completions: Vec::new(),
             workspace_open: false,
             section: LibrarySection::Maps,
             character_name: String::new(),
@@ -371,8 +374,17 @@ impl WorldLibraryState {
                     Err(error) => self.error = Some(error),
                 }
                 self.loaded = true;
+                continue;
             }
+            // Asset reads/writes/deletes are consumed by the library UI, which owns their
+            // request lifecycle. Keep them available rather than silently losing their results.
+            self.asset_completions.push(completion);
         }
+    }
+
+    /// Take asset-operation results accumulated by `tick`.
+    pub fn take_asset_completions(&mut self) -> Vec<WorldLibraryCompletion> {
+        std::mem::take(&mut self.asset_completions)
     }
 
     /// Persist the current metadata snapshot through the platform host.
@@ -470,7 +482,7 @@ mod tests {
         assert_ne!(save_id, 0);
         bridge.complete(WorldLibraryCompletion { request_id: save_id, result: Ok(None) });
         state.tick(Some(&bridge));
-        assert!(state.pending_save.is_none());
+        assert!(state.pending_saves.is_empty());
         assert!(state.error.is_none());
     }
 
