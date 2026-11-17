@@ -415,7 +415,7 @@ impl WorldLibraryState {
 }
 
 fn validate_map_image_bytes(bytes: &[u8]) -> Result<(), String> {
-    let png = bytes.starts_with(b"\\x89PNG\\r\\n\\x1a\\n");
+    let png = bytes.starts_with(b"\x89PNG\r\n\x1a\n");
     let jpeg = bytes.starts_with(&[0xff, 0xd8, 0xff]);
     let gif = bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a");
     let webp = bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP";
