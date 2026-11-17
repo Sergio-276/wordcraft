@@ -357,6 +357,14 @@ impl WorldLibraryState {
         id
     }
 
+    fn new_asset_id(&self, prefix: &str) -> String {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        format!("{prefix}-{timestamp}-{}", self.next_request_id)
+    }
+
     /// Start the initial load once a host bridge is available and consume completed operations.
     pub fn tick(&mut self, bridge: Option<&WorldLibraryBridge>) {
         let Some(bridge) = bridge else { return };
@@ -435,7 +443,7 @@ impl WorldLibraryState {
             return Err("The selected map no longer exists.".into());
         }
         validate_map_image_bytes(&bytes)?;
-        let asset_id = format!("map-image-{}", self.next_request_id);
+        let asset_id = self.new_asset_id("map-image");
         let request_id = self.request_id();
         bridge.write_asset(request_id, asset_id.clone(), bytes)?;
         self.pending_map_image_writes.insert(request_id, (map_id, asset_id));
@@ -457,7 +465,7 @@ impl WorldLibraryState {
             return Err("The selected point of interest no longer exists.".into());
         }
         validate_map_image_bytes(&bytes)?;
-        let asset_id = format!("point-image-{}", self.next_request_id);
+        let asset_id = self.new_asset_id("point-image");
         let request_id = self.request_id();
         bridge.write_asset(request_id, asset_id.clone(), bytes)?;
         self.pending_point_image_writes.insert(request_id, (point_id, asset_id));
@@ -470,7 +478,7 @@ impl WorldLibraryState {
             return Err("The selected character no longer exists.".into());
         }
         validate_map_image_bytes(&bytes)?;
-        let asset_id = format!("character-image-{}", self.next_request_id);
+        let asset_id = self.new_asset_id("character-image");
         let request_id = self.request_id();
         bridge.write_asset(request_id, asset_id.clone(), bytes)?;
         self.pending_character_image_writes.insert(request_id, (character_id, asset_id));
