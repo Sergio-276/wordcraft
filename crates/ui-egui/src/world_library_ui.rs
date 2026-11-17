@@ -126,8 +126,11 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                     .flatten()
                     .into_iter()
                     .collect::<Vec<_>>();
-                ids.extend(app.world_library.library.points.iter()
-                    .flat_map(|point| point.image_asset_ids.iter().cloned()));
+                if let Some(map_id) = app.world_library.point_map_id.as_ref() {
+                    ids.extend(app.world_library.library.points.iter()
+                        .filter(|point| &point.map_id == map_id)
+                        .flat_map(|point| point.image_asset_ids.iter().cloned()));
+                }
                 ids
             }
             crate::world_library::LibrarySection::Characters => app.world_library.library.characters.iter()
