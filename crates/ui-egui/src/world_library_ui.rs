@@ -180,6 +180,14 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                 if app.world_library.library.maps.is_empty() {
                     ui.label("No maps have been added yet.");
                 } else {
+                    let map_previews = app.world_library.library.maps.iter().map(|map| {
+                        let bytes = app.world_library.map_image_bytes.get(&map.image_asset_id).cloned();
+                        let points = app.world_library.library.points.iter()
+                            .filter(|point| point.map_id == map.id)
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        (map.id.clone(), map.image_asset_id.clone(), bytes, points)
+                    }).collect::<Vec<_>>();
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         let mut remove = None;
                         for (index, map) in app.world_library.library.maps.iter_mut().enumerate() {
@@ -210,8 +218,14 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                 }
                                 if map.image_asset_id.is_empty() {
                                     ui.weak("No map image imported yet.");
+                                } else if let Some((_, asset_id, Some(bytes), points)) = map_previews.iter().find(|(id, _, _, _)| id == &map.id) {
+                                    if let Some(texture) = map_texture(ui.ctx(), asset_id, bytes) {
+                                        let _ = show_map_preview(ui, &texture, points, false);
+                                    } else {
+                                        ui.colored_label(ui.visuals().error_fg_color, "This map image could not be decoded.");
+                                    }
                                 } else {
-                                    ui.weak("Map image stored.");
+                                    ui.weak("Map image stored; loading preview…");
                                 }
                             });
                         }
