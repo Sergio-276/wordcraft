@@ -88,7 +88,7 @@ impl WorldLibrary {
             if map.id.trim() != map.id || map.id.is_empty() || !map_ids.insert(map.id.as_str()) {
                 return Err("Map IDs must be non-empty and unique".into());
             }
-            if !valid_asset_id(&map.image_asset_id) {
+            if !map.image_asset_id.is_empty() && !valid_asset_id(&map.image_asset_id) {
                 return Err(format!("Map {} has an invalid image asset ID", map.id));
             }
         }
@@ -295,6 +295,13 @@ pub struct WorldLibraryState {
     pub section: LibrarySection,
     pub character_name: String,
     pub character_description: String,
+    pub map_name: String,
+    pub map_description: String,
+    pub point_name: String,
+    pub point_description: String,
+    pub point_map_id: Option<String>,
+    pub point_x: f32,
+    pub point_y: f32,
 }
 
 impl Default for WorldLibraryState {
@@ -311,6 +318,13 @@ impl Default for WorldLibraryState {
             section: LibrarySection::Maps,
             character_name: String::new(),
             character_description: String::new(),
+            map_name: String::new(),
+            map_description: String::new(),
+            point_name: String::new(),
+            point_description: String::new(),
+            point_map_id: None,
+            point_x: 0.5,
+            point_y: 0.5,
         }
     }
 }
