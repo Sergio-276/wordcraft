@@ -448,6 +448,24 @@ mod tests {
     }
 
     #[test]
+    fn map_image_write_tracks_the_target_map_until_storage_completes() {
+        use super::{MapRecord, WorldLibraryBridge, WorldLibraryCommand, WorldLibraryState};
+        let bridge = WorldLibraryBridge::default();
+        let mut state = WorldLibraryState::default();
+        state.library.maps.push(MapRecord { id: "map-1".into(), ..MapRecord::default() });
+        assert!(state.write_map_image(&bridge, "map-1".into(), vec![1, 2, 3]).is_ok());
+        let commands = bridge.take_commands();
+        assert_eq!(commands.len(), 1);
+        match &commands[0] {
+            WorldLibraryCommand::WriteAsset { request_id, asset_id, bytes } => {
+                assert_eq!(state.pending_map_image_writes.get(request_id), Some(&("map-1".into(), asset_id.clone())));
+                assert_eq!(bytes, &vec![1, 2, 3]);
+            }
+            _ => panic!("expected a map image asset write"),
+        }
+    }
+
+    #[test]
     fn library_state_preserves_asset_completions_for_the_ui() {
         use super::{WorldLibraryBridge, WorldLibraryCompletion, WorldLibraryState};
         let bridge = WorldLibraryBridge::default();
