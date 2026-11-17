@@ -483,6 +483,16 @@ mod tests {
     }
 
     #[test]
+    fn map_image_write_rejects_non_image_bytes() {
+        use super::{MapRecord, WorldLibraryBridge, WorldLibraryState};
+        let bridge = WorldLibraryBridge::default();
+        let mut state = WorldLibraryState::default();
+        state.library.maps.push(MapRecord { id: "map-1".into(), ..MapRecord::default() });
+        assert!(state.write_map_image(&bridge, "map-1".into(), vec![1, 2, 3]).is_err());
+        assert!(bridge.take_commands().is_empty());
+    }
+
+    #[test]
     fn library_state_preserves_asset_completions_for_the_ui() {
         use super::{WorldLibraryBridge, WorldLibraryCompletion, WorldLibraryState};
         let bridge = WorldLibraryBridge::default();
