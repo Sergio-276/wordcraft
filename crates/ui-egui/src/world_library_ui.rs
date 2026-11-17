@@ -86,15 +86,24 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
     if let Some(inbox) = &app.services.world_library_image_inbox {
         let picked = inbox.lock().unwrap_or_else(|error| error.into_inner()).drain(..).collect::<Vec<_>>();
         for (_name, bytes) in picked {
-            let Some(map_id) = app.world_library.pending_map_image_for.take() else {
-                app.world_library.error = Some("Choose a map before importing its image.".into());
+            let target = app.world_library.pending_map_image_for.take().map(|id| ("map", id))
+                .or_else(|| app.world_library.pending_point_image_for.take().map(|id| ("point", id)))
+                .or_else(|| app.world_library.pending_character_image_for.take().map(|id| ("character", id)));
+            let Some((kind, target_id)) = target else {
+                app.world_library.error = Some("Choose a map, point or character before importing an image.".into());
                 continue;
             };
             if bytes.is_empty() {
                 continue;
             }
             if let Some(bridge) = app.services.world_library.clone() {
-                if let Err(error) = app.world_library.write_map_image(&bridge, map_id, bytes) {
+                let result = match kind {
+                    "map" => app.world_library.write_map_image(&bridge, target_id, bytes),
+                    "point" => app.world_library.write_point_image(&bridge, target_id, bytes),
+                    "character" => app.world_library.write_character_image(&bridge, target_id, bytes),
+                    _ => Err("Unknown image destination.".into()),
+                };
+                if let Err(error) = result {
                     app.world_library.error = Some(error);
                 }
             } else {
@@ -127,12 +136,32 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                 }
                 Err(error) => app.world_library.error = Some(error),
             }
+        } else if let Some((point_id, asset_id)) = app.world_library.pending_point_image_writes.remove(&completion.request_id) {
+            match completion.result {
+                Ok(_) => {
+                    if let Some(point) = app.world_library.library.points.iter_mut().find(|point| point.id == point_id) {
+                        point.image_asset_ids.push(asset_id);
+                        changed = true;
+                    }
+                }
+                Err(error) => app.world_library.error = Some(error),
+            }
+        } else if let Some((character_id, asset_id)) = app.world_library.pending_character_image_writes.remove(&completion.request_id) {
+            match completion.result {
+                Ok(_) => {
+                    if let Some(character) = app.world_library.library.characters.iter_mut().find(|character| character.id == character_id) {
+                        character.portrait_asset_id = Some(asset_id);
+                        changed = true;
+                    }
+                }
+                Err(error) => app.world_library.error = Some(error),
+            }
         } else if let Some(asset_id) = app.world_library.pending_map_image_reads.remove(&completion.request_id) {
             match completion.result {
                 Ok(Some(bytes)) => {
                     app.world_library.map_image_bytes.insert(asset_id, bytes);
                 }
-                Ok(None) => app.world_library.error = Some("A map image is missing from library storage.".into()),
+                Ok(None) => app.world_library.error = Some("A library image is missing from storage.".into()),
                 Err(error) => app.world_library.error = Some(error),
             }
         }
