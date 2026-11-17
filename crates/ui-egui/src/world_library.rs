@@ -442,6 +442,15 @@ impl WorldLibraryState {
         Ok(())
     }
 
+    /// Delete an unreferenced image asset from the host store.
+    pub fn delete_library_asset(&mut self, bridge: &WorldLibraryBridge, asset_id: &str) -> Result<(), String> {
+        if asset_id.is_empty() {
+            return Ok(());
+        }
+        let request_id = self.request_id();
+        bridge.delete_asset(request_id, asset_id.to_owned())
+    }
+
     /// Queue an image write for a point of interest.
     pub fn write_point_image(&mut self, bridge: &WorldLibraryBridge, point_id: String, bytes: Vec<u8>) -> Result<(), String> {
         if !self.library.points.iter().any(|point| point.id == point_id) {
