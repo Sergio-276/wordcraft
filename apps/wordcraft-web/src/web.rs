@@ -318,11 +318,14 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
                     let bytes = file.read().await;
                     if bytes.is_empty() || bytes.len() > 64 * 1024 * 1024 {
                         log::warn!("map images must be between 1 byte and 64 MiB");
-                        return;
+                        inbox.lock().unwrap_or_else(|error| error.into_inner()).push((String::new(), Vec::new()));
+                    } else {
+                        inbox.lock().unwrap_or_else(|error| error.into_inner()).push((file.file_name(), bytes));
                     }
-                    inbox.lock().unwrap_or_else(|error| error.into_inner()).push((file.file_name(), bytes));
-                    ctx.request_repaint();
+                } else {
+                    inbox.lock().unwrap_or_else(|error| error.into_inner()).push((String::new(), Vec::new()));
                 }
+                ctx.request_repaint();
             });
         })),
         on_dirty: Some(Box::new(move |d| dirty.set(d))),
