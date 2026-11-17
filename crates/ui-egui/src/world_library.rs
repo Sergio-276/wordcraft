@@ -140,6 +140,17 @@ impl WorldLibrary {
     }
 }
 
+
+/// The currently selected page in the standalone library workspace.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LibrarySection {
+    #[default]
+    Maps,
+    Points,
+    Characters,
+}
+
+
 /// A map image and its descriptive metadata.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MapRecord {
@@ -279,6 +290,10 @@ pub struct WorldLibraryState {
     next_request_id: u64,
     load_requested: bool,
     pending_save: Option<u64>,
+    pub workspace_open: bool,
+    pub section: LibrarySection,
+    pub character_name: String,
+    pub character_description: String,
 }
 
 impl Default for WorldLibraryState {
@@ -290,6 +305,10 @@ impl Default for WorldLibraryState {
             next_request_id: 1,
             load_requested: false,
             pending_save: None,
+            workspace_open: false,
+            section: LibrarySection::Maps,
+            character_name: String::new(),
+            character_description: String::new(),
         }
     }
 }
