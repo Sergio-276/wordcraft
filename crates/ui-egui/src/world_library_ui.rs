@@ -375,6 +375,16 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                 changed |= ui.add(egui::Slider::new(&mut point.x, 0.0..=1.0).text("Horizontal")).changed();
                                 changed |= ui.add(egui::Slider::new(&mut point.y, 0.0..=1.0).text("Vertical")).changed();
                                 let point_id = point.id.clone();
+                                let point_image_ids = point.image_asset_ids.clone();
+                                ui.horizontal_wrapped(|ui| {
+                                    for asset_id in &point_image_ids {
+                                        if let Some(bytes) = app.world_library.map_image_bytes.get(asset_id).cloned() {
+                                            if let Some(texture) = map_texture(ui.ctx(), asset_id, &bytes) {
+                                                ui.add(egui::Image::new((texture.id(), egui::vec2(72.0, 72.0))));
+                                            }
+                                        }
+                                    }
+                                });
                                 ui.horizontal(|ui| {
                                     ui.label(format!("Images: {}", point.image_asset_ids.len()));
                                     if ui.add_enabled(
@@ -435,6 +445,13 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                 });
                                 changed |= ui.add(egui::TextEdit::multiline(&mut character.description).desired_rows(2)).changed();
                                 let character_id = character.id.clone();
+                                if let Some(asset_id) = character.portrait_asset_id.clone() {
+                                    if let Some(bytes) = app.world_library.map_image_bytes.get(&asset_id).cloned() {
+                                        if let Some(texture) = map_texture(ui.ctx(), &asset_id, &bytes) {
+                                            ui.add(egui::Image::new((texture.id(), egui::vec2(96.0, 96.0))));
+                                        }
+                                    }
+                                }
                                 ui.horizontal(|ui| {
                                     ui.label(if character.portrait_asset_id.is_some() { "Portrait stored" } else { "No portrait" });
                                     if ui.add_enabled(
