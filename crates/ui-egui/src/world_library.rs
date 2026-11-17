@@ -467,7 +467,8 @@ mod tests {
         let bridge = WorldLibraryBridge::default();
         let mut state = WorldLibraryState::default();
         state.library.maps.push(MapRecord { id: "map-1".into(), ..MapRecord::default() });
-        assert!(state.write_map_image(&bridge, "map-1".into(), vec![1, 2, 3]).is_ok());
+        let png_header = vec![0x89, 80, 78, 71, 13, 10, 26, 10];
+        assert!(state.write_map_image(&bridge, "map-1".into(), png_header.clone()).is_ok());
         let commands = bridge.take_commands();
         assert_eq!(commands.len(), 1);
         let write = commands.into_iter().find_map(|command| match command {
@@ -477,7 +478,7 @@ mod tests {
         assert!(write.is_some());
         if let Some((request_id, asset_id, bytes)) = write {
             assert_eq!(state.pending_map_image_writes.get(&request_id), Some(&("map-1".into(), asset_id)));
-            assert_eq!(bytes, vec![1, 2, 3]);
+            assert_eq!(bytes, png_header);
         }
     }
 
