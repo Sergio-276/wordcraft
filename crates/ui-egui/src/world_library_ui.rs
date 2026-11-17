@@ -285,7 +285,18 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                         }
                         if let Some(index) = remove {
                             let map = app.world_library.library.maps.remove(index);
+                            let mut assets = vec![map.image_asset_id];
+                            for point in app.world_library.library.points.iter().filter(|point| point.map_id == map.id) {
+                                assets.extend(point.image_asset_ids.iter().cloned());
+                            }
                             app.world_library.library.points.retain(|point| point.map_id != map.id);
+                            if let Some(bridge) = app.services.world_library.clone() {
+                                for asset_id in assets {
+                                    if let Err(error) = app.world_library.delete_library_asset(&bridge, &asset_id) {
+                                        app.world_library.error = Some(error);
+                                    }
+                                }
+                            }
                             changed = true;
                         }
                     });
@@ -411,7 +422,14 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                             });
                         }
                         if let Some(index) = remove {
-                            app.world_library.library.points.remove(index);
+                            let point = app.world_library.library.points.remove(index);
+                            if let Some(bridge) = app.services.world_library.clone() {
+                                for asset_id in point.image_asset_ids {
+                                    if let Err(error) = app.world_library.delete_library_asset(&bridge, &asset_id) {
+                                        app.world_library.error = Some(error);
+                                    }
+                                }
+                            }
                             changed = true;
                         }
                     });
@@ -478,7 +496,14 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                             });
                         }
                         if let Some(index) = remove {
-                            app.world_library.library.characters.remove(index);
+                            let character = app.world_library.library.characters.remove(index);
+                            if let Some(bridge) = app.services.world_library.clone() {
+                                if let Some(asset_id) = character.portrait_asset_id {
+                                    if let Err(error) = app.world_library.delete_library_asset(&bridge, &asset_id) {
+                                        app.world_library.error = Some(error);
+                                    }
+                                }
+                            }
                             changed = true;
                         }
                     });
