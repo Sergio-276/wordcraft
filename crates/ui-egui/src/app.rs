@@ -103,7 +103,7 @@ impl WordApp {
                 ..UiState::default()
             },
             services,
-            world_library: world_library::WorldLibraryState::default(),
+            world_library: super::world_library::WorldLibraryState::default(),
             clipboard_published: false,
             printing: Default::default(),
             print_feedback_seen: None,
