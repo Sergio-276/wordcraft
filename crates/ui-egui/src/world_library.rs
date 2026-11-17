@@ -492,6 +492,19 @@ mod tests {
     }
 
     #[test]
+    fn map_metadata_can_be_saved_before_an_image_is_imported() {
+        let mut library = WorldLibrary::new();
+        library.maps.push(MapRecord {
+            id: "map-1".into(),
+            name: "The Old City".into(),
+            description: "Map image will be added later".into(),
+            image_asset_id: String::new(),
+        });
+        assert!(library.validate().is_ok());
+        assert!(library.to_json_bytes().is_ok());
+    }
+
+    #[test]
     fn validated_storage_serialization_round_trips() {
         let mut library = WorldLibrary::new();
         library.maps.push(MapRecord {
