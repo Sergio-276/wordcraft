@@ -396,6 +396,7 @@ impl WorldLibraryState {
         if !self.library.maps.iter().any(|map| map.id == map_id) {
             return Err("The selected map no longer exists.".into());
         }
+        validate_map_image_bytes(&bytes)?;
         let asset_id = format!("map-image-{}", self.next_request_id);
         let request_id = self.request_id();
         bridge.write_asset(request_id, asset_id.clone(), bytes)?;
@@ -410,6 +411,19 @@ impl WorldLibraryState {
         bridge.save_metadata(request_id, bytes)?;
         self.pending_saves.insert(request_id);
         Ok(())
+    }
+}
+
+fn validate_map_image_bytes(bytes: &[u8]) -> Result<(), String> {
+    let png = bytes.starts_with(b"\\x89PNG\\r\\n\\x1a\\n");
+    let jpeg = bytes.starts_with(&[0xff, 0xd8, 0xff]);
+    let gif = bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a");
+    let webp = bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP";
+    let bmp = bytes.starts_with(b"BM");
+    if png || jpeg || gif || webp || bmp {
+        Ok(())
+    } else {
+        Err("Choose a valid PNG, JPEG, GIF, WebP or BMP image.".into())
     }
 }
 
