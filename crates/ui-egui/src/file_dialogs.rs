@@ -39,6 +39,7 @@ pub type FileDialogAnswer = Result<Vec<String>, String>;
 const MAX_FONTS_PER_PICK: usize = 2000;
 
 const PICTURES: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "wmf", "emf"];
+const MAP_PICTURES: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp"];
 const DOCUMENTS: &[&str] =
     &["docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "ott", "fodt", "rtf", "txt", "md", "html", "htm", "mht", "mhtml", "tex", "json", "xml"];
 
@@ -47,7 +48,8 @@ const DOCUMENTS: &[&str] =
 /// The host's system dialog and the built-in browser offer the same.
 pub fn open_filters(purpose: &str) -> &'static [(&'static str, &'static [&'static str])] {
     match purpose {
-        "picture" | "world_library_image" => &[("Pictures", PICTURES)],
+        "picture" => &[("Pictures", PICTURES)],
+        "world_library_image" => &[("Map images", MAP_PICTURES)],
         "font" => &[("Fonts", wordcraft_fonts::FONT_FILE_EXTS)],
         "sources" => &[("Word sources", &["xml"]), ("All files", &["*"])],
         "recipients" => &[("Recipient lists", wordcraft_engine::cmd::mailings::RECIPIENT_EXTENSIONS), ("All files", &["*"])],
