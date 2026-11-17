@@ -17,6 +17,11 @@ fn map_texture(ctx: &egui::Context, asset_id: &str, bytes: &[u8]) -> Option<egui
         return Some(texture);
     }
     let image = wordcraft_geom::picture::decode(bytes, wordcraft_geom::MAX_DECODED_BYTES).ok()?;
+    let image = if image.width().max(image.height()) > 4096 {
+        image.thumbnail(4096, 4096)
+    } else {
+        image
+    };
     let rgba = image.to_rgba8();
     let color = egui::ColorImage::from_rgba_unmultiplied(
         [rgba.width() as usize, rgba.height() as usize],
