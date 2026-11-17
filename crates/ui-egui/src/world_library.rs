@@ -294,6 +294,9 @@ pub struct WorldLibraryState {
     /// Asset-operation completions are retained for the UI instead of being discarded by tick.
     asset_completions: Vec<WorldLibraryCompletion>,
     pub(super) pending_map_image_writes: std::collections::BTreeMap<u64, (String, String)>,
+    pub(super) pending_map_image_reads: std::collections::BTreeMap<u64, String>,
+    pub(super) map_image_bytes: std::collections::BTreeMap<String, Vec<u8>>,
+    requested_map_image_assets: std::collections::BTreeSet<String>,
     pub pending_map_image_for: Option<String>,
     pub workspace_open: bool,
     pub section: LibrarySection,
@@ -320,6 +323,9 @@ impl Default for WorldLibraryState {
             pending_saves: std::collections::BTreeSet::new(),
             asset_completions: Vec::new(),
             pending_map_image_writes: std::collections::BTreeMap::new(),
+            pending_map_image_reads: std::collections::BTreeMap::new(),
+            map_image_bytes: std::collections::BTreeMap::new(),
+            requested_map_image_assets: std::collections::BTreeSet::new(),
             pending_map_image_for: None,
             workspace_open: false,
             section: LibrarySection::Maps,
@@ -389,6 +395,18 @@ impl WorldLibraryState {
     /// Take asset-operation results accumulated by `tick`.
     pub fn take_asset_completions(&mut self) -> Vec<WorldLibraryCompletion> {
         std::mem::take(&mut self.asset_completions)
+    }
+
+    /// Request a map image once; the UI consumes its bytes from the asset completion queue.
+    pub fn request_map_image(&mut self, bridge: &WorldLibraryBridge, asset_id: &str) -> Result<(), String> {
+        if asset_id.is_empty() || self.map_image_bytes.contains_key(asset_id) || self.requested_map_image_assets.contains(asset_id) {
+            return Ok(());
+        }
+        let request_id = self.request_id();
+        bridge.read_asset(request_id, asset_id.to_owned())?;
+        self.pending_map_image_reads.insert(request_id, asset_id.to_owned());
+        self.requested_map_image_assets.insert(asset_id.to_owned());
+        Ok(())
     }
 
     /// Queue an image write and remember which map should receive its asset reference.
