@@ -480,7 +480,11 @@ fn services(file_dialog: file_dialogs::Hook, cancel_file_dialog: file_dialogs::C
                     }
                     Err(_) => None,
                 };
-                let Some(path) = picked else { return };
+                let Some(path) = picked else {
+                    image_inbox.lock().unwrap_or_else(|error| error.into_inner()).push((String::new(), Vec::new()));
+                    ctx.request_repaint();
+                    return;
+                };
                 let path = std::path::PathBuf::from(path);
                 let result = std::fs::metadata(&path).and_then(|metadata| {
                     if metadata.len() == 0 || metadata.len() > 64 * 1024 * 1024 {
@@ -492,10 +496,13 @@ fn services(file_dialog: file_dialogs::Hook, cancel_file_dialog: file_dialogs::C
                     Ok(bytes) => {
                         let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| "map-image".into());
                         image_inbox.lock().unwrap_or_else(|error| error.into_inner()).push((name, bytes));
-                        ctx.request_repaint();
                     }
-                    Err(error) => log::warn!("couldn't read map image: {error}"),
+                    Err(error) => {
+                        log::warn!("couldn't read map image: {error}");
+                        image_inbox.lock().unwrap_or_else(|poison| poison.into_inner()).push((String::new(), Vec::new()));
+                    }
                 }
+                ctx.request_repaint();
             });
         })),
         file_dialog: Some(file_dialog),
