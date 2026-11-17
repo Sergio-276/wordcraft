@@ -147,11 +147,17 @@ mod tests {
             portrait_asset_id: Some("asset-mira".into()),
         });
 
-        let encoded = serde_json::to_string(&library).expect("library serializes");
-        let decoded: WorldLibrary = serde_json::from_str(&encoded).expect("library deserializes");
-        assert_eq!(decoded, library);
-        assert_eq!(decoded.version, LIBRARY_VERSION);
-        assert!(decoded.validate().is_ok());
+        let encoded = serde_json::to_string(&library);
+        assert!(encoded.is_ok());
+        if let Ok(encoded) = encoded {
+            let decoded: Result<WorldLibrary, _> = serde_json::from_str(&encoded);
+            assert!(decoded.is_ok());
+            if let Ok(decoded) = decoded {
+                assert_eq!(decoded, library);
+                assert_eq!(decoded.version, LIBRARY_VERSION);
+                assert!(decoded.validate().is_ok());
+            }
+        }
     }
 
     #[test]
