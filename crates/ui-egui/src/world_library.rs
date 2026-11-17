@@ -238,6 +238,18 @@ mod tests {
     }
 
     #[test]
+    fn storage_serialization_stops_at_metadata_limit() {
+        let mut library = WorldLibrary::new();
+        library.characters.push(CharacterRecord {
+            id: "character-1".into(),
+            name: "Large description".into(),
+            description: "x".repeat(MAX_LIBRARY_JSON_BYTES),
+            portrait_asset_id: None,
+        });
+        assert!(library.to_json_bytes().is_err());
+    }
+
+    #[test]
     fn storage_deserialization_rejects_oversized_metadata() {
         let bytes = vec![b' '; MAX_LIBRARY_JSON_BYTES + 1];
         assert!(WorldLibrary::from_json_bytes(&bytes).is_err());
