@@ -259,15 +259,17 @@ fn listen_for_pasted_pictures(inbox: Inbox, ctx: egui::Context) -> Result<(), St
 /// `dirty` is the flag the `beforeunload` guard reads ([`guard_unload`]).
 fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: AsyncSaves, messages: Rc<RefCell<Vec<String>>>) -> Services {
     let open_inbox = inbox.clone();
+    let world_library_image_inbox: Inbox = std::sync::Arc::default();
+    let open_library_image_inbox = world_library_image_inbox.clone();
     let save_ctx = ctx.clone();
     let font_ctx = ctx.clone();
     let font_messages = messages.clone();
     Services {
         world_library: Some(wordcraft_ui_egui::world_library::WorldLibraryBridge::default()),
         open_async: Some(Box::new(move |purpose: &str| {
-            let inbox = open_inbox.clone();
+            let inbox = if purpose == "world_library_image" { open_library_image_inbox.clone() } else { open_inbox.clone() };
             let ctx = ctx.clone();
-            let dialog = if purpose == "picture" {
+            let dialog = if purpose == "picture" || purpose == "world_library_image" {
                 rfd::AsyncFileDialog::new().add_filter("Pictures", IMAGE_EXTS)
             } else if purpose == "font" {
                 rfd::AsyncFileDialog::new().add_filter("Fonts", wordcraft_fonts::FONT_FILE_EXTS)
@@ -301,6 +303,8 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
         download: Some(Box::new(move |path: &str, bytes: &[u8]| download(&saves, &save_ctx, path, bytes))),
         print: Some(Box::new(print_pdf)),
         inbox: Some(inbox),
+        world_library_image_inbox: Some(world_library_image_inbox),
+        world_library_image_picker: Some(Box::new(|| {})),
         on_dirty: Some(Box::new(move |d| dirty.set(d))),
         animations_enabled: Some(animations_enabled()),
         store_font: Some(Box::new(font_store::store)),
