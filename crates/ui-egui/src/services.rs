@@ -4,6 +4,10 @@ use super::{FileDialogAnswer, FileDialogRequest, WordApp, async_saves, paste_pic
 /// Platform services injected by the host (file dialogs, file I/O).
 #[derive(Default)]
 pub struct Services {
+    /// Host-backed storage for the independent maps, points-of-interest and characters library.
+    /// The shared UI queues operations; the platform drains them and posts completions. `None`
+    /// means the host has no persistent library store available.
+    pub world_library: Option<super::world_library::WorldLibraryBridge>,
     /// Desktop: discover configured printers on a worker.
     pub printers: Option<printing::Discover>,
     /// Desktop: submit the PDF with the chosen settings on a worker.
