@@ -30,6 +30,7 @@ mod print;
 mod region;
 #[cfg(target_os = "macos")]
 mod traffic_lights;
+mod world_library_store;
 
 use wordcraft_engine::Session;
 use wordcraft_ui_egui::{
@@ -59,6 +60,9 @@ impl eframe::App for App {
     fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(target_os = "macos")]
         apple_events::poll(&self.5, &mut self.0, ctx);
+        if let Some(bridge) = &self.0.services.world_library {
+            world_library_store::process(bridge, wordcraft_control_key::settings_dir().map(|dir| dir.join("world-library")), ctx);
+        }
         self.0.logic(ctx);
         self.3.show(frame);
         let mut window = self.4;
@@ -457,6 +461,7 @@ fn write_prefs(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
 /// (`animations`), and making WordCraft the default app for Word documents (`default_apps`, #295).
 fn services(file_dialog: file_dialogs::Hook, cancel_file_dialog: file_dialogs::CancelHandle, ctx: &egui::Context) -> Services {
     Services {
+        world_library: Some(wordcraft_ui_egui::world_library::WorldLibraryBridge::default()),
         file_dialog: Some(file_dialog),
         cancel_file_dialog: Some(Box::new(move || cancel_file_dialog.cancel())),
         printers: Some(print::discover()),
