@@ -398,6 +398,28 @@ mod tests {
 
 
     #[test]
+    fn concurrent_metadata_saves_are_tracked_independently() {
+        use super::{WorldLibraryBridge, WorldLibraryCompletion, WorldLibraryState};
+        let bridge = WorldLibraryBridge::default();
+        let mut state = WorldLibraryState::default();
+        state.loaded = true;
+        assert!(state.save(&bridge).is_ok());
+        assert!(state.save(&bridge).is_ok());
+        let commands = bridge.take_commands();
+        let request_ids: Vec<u64> = commands.iter().filter_map(|command| match command {
+            super::WorldLibraryCommand::SaveMetadata { request_id, .. } => Some(*request_id),
+            _ => None,
+        }).collect();
+        assert_eq!(request_ids.len(), 2);
+        for request_id in request_ids.into_iter().rev() {
+            bridge.complete(WorldLibraryCompletion { request_id, result: Ok(None) });
+        }
+        state.tick(Some(&bridge));
+        assert!(state.pending_saves.is_empty());
+        assert!(state.error.is_none());
+    }
+
+    #[test]
     fn storage_bridge_delivers_commands_and_correlated_completions() {
         use super::{WorldLibraryBridge, WorldLibraryCommand, WorldLibraryCompletion};
         let bridge = WorldLibraryBridge::default();
