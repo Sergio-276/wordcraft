@@ -289,6 +289,7 @@ pub struct WorldLibraryState {
     pub error: Option<String>,
     next_request_id: u64,
     load_requested: bool,
+    pending_load: Option<u64>,
     pending_save: Option<u64>,
     pub workspace_open: bool,
     pub section: LibrarySection,
@@ -304,6 +305,7 @@ impl Default for WorldLibraryState {
             error: None,
             next_request_id: 1,
             load_requested: false,
+            pending_load: None,
             pending_save: None,
             workspace_open: false,
             section: LibrarySection::Maps,
@@ -326,6 +328,7 @@ impl WorldLibraryState {
         if !self.load_requested {
             let request_id = self.request_id();
             bridge.load_metadata(request_id);
+            self.pending_load = Some(request_id);
             self.load_requested = true;
         }
         for completion in bridge.take_completions() {
@@ -338,7 +341,8 @@ impl WorldLibraryState {
                 }
                 continue;
             }
-            if completion.request_id == 1 {
+            if self.pending_load == Some(completion.request_id) {
+                self.pending_load = None;
                 match completion.result {
                     Ok(Some(bytes)) => match WorldLibrary::from_json_bytes(&bytes) {
                         Ok(library) => {
