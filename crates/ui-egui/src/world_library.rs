@@ -293,7 +293,7 @@ pub struct WorldLibraryState {
     pending_saves: std::collections::BTreeSet<u64>,
     /// Asset-operation completions are retained for the UI instead of being discarded by tick.
     asset_completions: Vec<WorldLibraryCompletion>,
-    pending_map_image_writes: std::collections::BTreeMap<u64, (String, String)>,
+    pub(super) pending_map_image_writes: std::collections::BTreeMap<u64, (String, String)>,
     pub pending_map_image_for: Option<String>,
     pub workspace_open: bool,
     pub section: LibrarySection,
