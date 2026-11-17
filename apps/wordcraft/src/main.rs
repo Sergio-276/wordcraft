@@ -499,7 +499,7 @@ fn services(file_dialog: file_dialogs::Hook, cancel_file_dialog: file_dialogs::C
                     }
                     Err(error) => {
                         log::warn!("couldn't read map image: {error}");
-                        image_inbox.lock().unwrap_or_else(|poison| poison.into_inner()).push((String::new(), Vec::new()));
+                        image_inbox.lock().unwrap_or_else(|poison| poison.into_inner()).push((format!("error:{error}"), Vec::new()));
                     }
                 }
                 ctx.request_repaint();
