@@ -417,6 +417,13 @@ impl WorldLibraryState {
         Ok(())
     }
 
+    /// Keep only the image bytes needed by the currently visible library section.
+    pub fn retain_asset_previews(&mut self, needed: &std::collections::BTreeSet<String>) {
+        self.map_image_bytes.retain(|asset_id, _| needed.contains(asset_id));
+        self.requested_map_image_assets.retain(|asset_id| needed.contains(asset_id));
+        self.pending_map_image_reads.retain(|_, asset_id| needed.contains(asset_id));
+    }
+
     /// Queue an image write and remember which map should receive its asset reference.
     pub fn write_map_image(&mut self, bridge: &WorldLibraryBridge, map_id: String, bytes: Vec<u8>) -> Result<(), String> {
         if !self.library.maps.iter().any(|map| map.id == map_id) {
