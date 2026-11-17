@@ -432,6 +432,23 @@ mod tests {
     }
 
     #[test]
+    fn library_state_preserves_asset_completions_for_the_ui() {
+        use super::{WorldLibraryBridge, WorldLibraryCompletion, WorldLibraryState};
+        let bridge = WorldLibraryBridge::default();
+        let mut state = WorldLibraryState::default();
+        state.tick(Some(&bridge));
+        let _ = bridge.take_commands();
+        let completion = WorldLibraryCompletion { request_id: 99, result: Ok(Some(vec![1, 2, 3])) };
+        bridge.complete(completion);
+        state.tick(Some(&bridge));
+        assert_eq!(state.take_asset_completions(), vec![WorldLibraryCompletion {
+            request_id: 99,
+            result: Ok(Some(vec![1, 2, 3])),
+        }]);
+        assert!(state.take_asset_completions().is_empty());
+    }
+
+    #[test]
     fn storage_bridge_delivers_commands_and_correlated_completions() {
         use super::{WorldLibraryBridge, WorldLibraryCommand, WorldLibraryCompletion};
         let bridge = WorldLibraryBridge::default();
