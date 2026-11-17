@@ -68,17 +68,15 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                 } else {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         let mut remove = None;
-                        for (index, map) in app.world_library.library.maps.iter().enumerate() {
+                        for (index, map) in app.world_library.library.maps.iter_mut().enumerate() {
                             ui.group(|ui| {
                                 ui.horizontal(|ui| {
-                                    ui.strong(&map.name);
+                                    changed |= ui.text_edit_singleline(&mut map.name).changed();
                                     if ui.small_button("Delete map").clicked() {
                                         remove = Some(index);
                                     }
                                 });
-                                if !map.description.is_empty() {
-                                    ui.label(&map.description);
-                                }
+                                changed |= ui.add(egui::TextEdit::multiline(&mut map.description).desired_rows(2)).changed();
                                 if map.image_asset_id.is_empty() {
                                     ui.weak("No map image imported yet.");
                                 }
@@ -139,22 +137,21 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                 } else {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         let mut remove = None;
-                        for (index, point) in app.world_library.library.points.iter().enumerate() {
+                        for (index, point) in app.world_library.library.points.iter_mut().enumerate() {
                             let map_name = app.world_library.library.maps.iter()
                                 .find(|map| map.id == point.map_id)
-                                .map(|map| map.name.as_str()).unwrap_or("Unknown map");
+                                .map(|map| map.name.clone()).unwrap_or_else(|| "Unknown map".to_owned());
                             ui.group(|ui| {
                                 ui.horizontal(|ui| {
-                                    ui.strong(&point.name);
+                                    changed |= ui.text_edit_singleline(&mut point.name).changed();
                                     if ui.small_button("Delete").clicked() {
                                         remove = Some(index);
                                     }
                                 });
                                 ui.small(map_name);
-                                changed |= ui.text_edit_singleline(&mut app.world_library.library.points[index].name).changed();
-                                changed |= ui.add(egui::TextEdit::multiline(&mut app.world_library.library.points[index].description).desired_rows(2)).changed();
-                                changed |= ui.add(egui::Slider::new(&mut app.world_library.library.points[index].x, 0.0..=1.0).text("Horizontal")).changed();
-                                changed |= ui.add(egui::Slider::new(&mut app.world_library.library.points[index].y, 0.0..=1.0).text("Vertical")).changed();
+                                changed |= ui.add(egui::TextEdit::multiline(&mut point.description).desired_rows(2)).changed();
+                                changed |= ui.add(egui::Slider::new(&mut point.x, 0.0..=1.0).text("Horizontal")).changed();
+                                changed |= ui.add(egui::Slider::new(&mut point.y, 0.0..=1.0).text("Vertical")).changed();
                             });
                         }
                         if let Some(index) = remove {
@@ -188,15 +185,15 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                 } else {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         let mut remove = None;
-                        for (index, character) in app.world_library.library.characters.iter().enumerate() {
+                        for (index, character) in app.world_library.library.characters.iter_mut().enumerate() {
                             ui.group(|ui| {
                                 ui.horizontal(|ui| {
-                                    changed |= ui.text_edit_singleline(&mut app.world_library.library.characters[index].name).changed();
+                                    changed |= ui.text_edit_singleline(&mut character.name).changed();
                                     if ui.small_button("Delete").clicked() {
                                         remove = Some(index);
                                     }
                                 });
-                                changed |= ui.add(egui::TextEdit::multiline(&mut app.world_library.library.characters[index].description).desired_rows(2)).changed();
+                                changed |= ui.add(egui::TextEdit::multiline(&mut character.description).desired_rows(2)).changed();
                             });
                         }
                         if let Some(index) = remove {
