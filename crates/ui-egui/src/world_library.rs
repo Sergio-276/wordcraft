@@ -269,6 +269,86 @@ impl WorldLibraryBridge {
     }
 }
 
+
+/// Shared UI lifecycle for the host-backed library.
+#[derive(Clone, Debug)]
+pub struct WorldLibraryState {
+    pub library: WorldLibrary,
+    pub loaded: bool,
+    pub error: Option<String>,
+    next_request_id: u64,
+    load_requested: bool,
+    pending_save: Option<u64>,
+}
+
+impl Default for WorldLibraryState {
+    fn default() -> Self {
+        Self {
+            library: WorldLibrary::new(),
+            loaded: false,
+            error: None,
+            next_request_id: 1,
+            load_requested: false,
+            pending_save: None,
+        }
+    }
+}
+
+impl WorldLibraryState {
+    fn request_id(&mut self) -> u64 {
+        let id = self.next_request_id;
+        self.next_request_id = self.next_request_id.saturating_add(1);
+        id
+    }
+
+    /// Start the initial load once a host bridge is available and consume completed operations.
+    pub fn tick(&mut self, bridge: Option<&WorldLibraryBridge>) {
+        let Some(bridge) = bridge else { return };
+        if !self.load_requested {
+            let request_id = self.request_id();
+            bridge.load_metadata(request_id);
+            self.load_requested = true;
+        }
+        for completion in bridge.take_completions() {
+            if self.pending_save == Some(completion.request_id) {
+                self.pending_save = None;
+                if let Err(error) = completion.result {
+                    self.error = Some(error);
+                } else {
+                    self.error = None;
+                }
+                continue;
+            }
+            if completion.request_id == 1 {
+                match completion.result {
+                    Ok(Some(bytes)) => match WorldLibrary::from_json_bytes(&bytes) {
+                        Ok(library) => {
+                            self.library = library;
+                            self.error = None;
+                        }
+                        Err(error) => self.error = Some(error),
+                    },
+                    Ok(None) => {
+                        self.library = WorldLibrary::new();
+                        self.error = None;
+                    }
+                    Err(error) => self.error = Some(error),
+                }
+                self.loaded = true;
+            }
+        }
+    }
+
+    /// Persist the current metadata snapshot through the platform host.
+    pub fn save(&mut self, bridge: &WorldLibraryBridge) -> Result<(), String> {
+        let bytes = self.library.to_json_bytes()?;
+        let request_id = self.request_id();
+        bridge.save_metadata(request_id, bytes)?;
+        self.pending_save = Some(request_id);
+        Ok(())
+    }
+}
+
 fn validate_asset_id(asset_id: &str) -> Result<(), String> {
     if asset_id.is_empty() || asset_id.trim() != asset_id || asset_id.contains('/') || asset_id.contains('\\') || asset_id == "." || asset_id == ".." {
         return Err("Library asset IDs must be non-empty canonical file names".into());
