@@ -535,6 +535,24 @@ mod tests {
     }
 
     #[test]
+    fn retaining_preview_assets_releases_unneeded_bytes_and_pending_reads() {
+        use super::WorldLibraryState;
+        let mut state = WorldLibraryState::default();
+        state.map_image_bytes.insert("keep".into(), vec![1]);
+        state.map_image_bytes.insert("discard".into(), vec![2]);
+        state.requested_map_image_assets.insert("keep".into());
+        state.requested_map_image_assets.insert("discard".into());
+        state.pending_map_image_reads.insert(10, "keep".into());
+        state.pending_map_image_reads.insert(11, "discard".into());
+
+        let removed = state.retain_asset_previews(&std::collections::BTreeSet::from(["keep".to_owned()]));
+        assert_eq!(removed, vec!["discard".to_owned()]);
+        assert_eq!(state.map_image_bytes.keys().cloned().collect::<Vec<_>>(), vec!["keep".to_owned()]);
+        assert_eq!(state.requested_map_image_assets, std::collections::BTreeSet::from(["keep".to_owned()]));
+        assert_eq!(state.pending_map_image_reads, std::collections::BTreeMap::from([(10, "keep".to_owned())]));
+    }
+
+    #[test]
     fn map_image_reads_are_requested_only_once_while_pending() {
         use super::{MapRecord, WorldLibraryBridge, WorldLibraryCommand, WorldLibraryState};
         let bridge = WorldLibraryBridge::default();
