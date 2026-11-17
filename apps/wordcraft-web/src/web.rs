@@ -14,6 +14,7 @@ const DOC_EXTS: &[&str] =
 const IMAGE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "wmf", "emf"];
 const RECIPIENT_EXTS: &[&str] = wordcraft_engine::cmd::mailings::RECIPIENT_EXTENSIONS;
 mod font_store;
+mod world_library_store;
 const CANVAS_ID: &str = "wordcraft_canvas";
 const LOADING_ID: &str = "wordcraft_loading";
 
@@ -159,6 +160,9 @@ impl eframe::App for WebShell {
         for msg in msgs {
             self.app.status(msg);
         }
+        if let Some(bridge) = self.app.services.world_library.clone() {
+            world_library_store::process(&bridge, ctx);
+        }
         self.app.logic(ctx);
         // Store changed preferences straight away: a reload or closed tab runs no exit code (#2132).
         if let Some(json) = self.prefs.changed(&self.app) {
@@ -259,6 +263,7 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
     let font_ctx = ctx.clone();
     let font_messages = messages.clone();
     Services {
+        world_library: Some(wordcraft_ui_egui::world_library::WorldLibraryBridge::default()),
         open_async: Some(Box::new(move |purpose: &str| {
             let inbox = open_inbox.clone();
             let ctx = ctx.clone();
