@@ -137,7 +137,12 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
         asset_ids.sort();
         asset_ids.dedup();
         let needed = asset_ids.iter().cloned().collect::<std::collections::BTreeSet<_>>();
-        app.world_library.retain_asset_previews(&needed);
+        let removed = app.world_library.retain_asset_previews(&needed);
+        ui.ctx().data_mut(|data| {
+            for asset_id in removed {
+                data.remove_temp::<egui::TextureHandle>(egui::Id::new(("world_library_map_texture", asset_id.as_str())));
+            }
+        });
         for asset_id in asset_ids {
             if let Err(error) = app.world_library.request_map_image(&bridge, &asset_id) {
                 app.world_library.error = Some(error);
