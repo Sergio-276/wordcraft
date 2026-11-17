@@ -158,9 +158,20 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
         if let Some((map_id, asset_id)) = app.world_library.pending_map_image_writes.remove(&completion.request_id) {
             match completion.result {
                 Ok(_) => {
-                    if let Some(map) = app.world_library.library.maps.iter_mut().find(|map| map.id == map_id) {
-                        map.image_asset_id = asset_id;
+                    let previous = app.world_library.library.maps.iter_mut()
+                        .find(|map| map.id == map_id)
+                        .map(|map| std::mem::replace(&mut map.image_asset_id, asset_id.clone()));
+                    if let Some(previous) = previous {
+                        if !previous.is_empty() && previous != asset_id {
+                            if let Some(bridge) = app.services.world_library.clone() {
+                                if let Err(error) = app.world_library.delete_library_asset(&bridge, &previous) {
+                                    app.world_library.error = Some(error);
+                                }
+                            }
+                        }
                         changed = true;
+                    } else if let Some(bridge) = app.services.world_library.clone() {
+                        let _ = app.world_library.delete_library_asset(&bridge, &asset_id);
                     }
                 }
                 Err(error) => app.world_library.error = Some(error),
@@ -178,9 +189,22 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
         } else if let Some((character_id, asset_id)) = app.world_library.pending_character_image_writes.remove(&completion.request_id) {
             match completion.result {
                 Ok(_) => {
-                    if let Some(character) = app.world_library.library.characters.iter_mut().find(|character| character.id == character_id) {
-                        character.portrait_asset_id = Some(asset_id);
+                    let previous = app.world_library.library.characters.iter_mut()
+                        .find(|character| character.id == character_id)
+                        .and_then(|character| character.portrait_asset_id.replace(asset_id.clone()));
+                    if app.world_library.library.characters.iter().any(|character| character.id == character_id) {
+                        if let Some(previous) = previous {
+                            if previous != asset_id {
+                                if let Some(bridge) = app.services.world_library.clone() {
+                                    if let Err(error) = app.world_library.delete_library_asset(&bridge, &previous) {
+                                        app.world_library.error = Some(error);
+                                    }
+                                }
+                            }
+                        }
                         changed = true;
+                    } else if let Some(bridge) = app.services.world_library.clone() {
+                        let _ = app.world_library.delete_library_asset(&bridge, &asset_id);
                     }
                 }
                 Err(error) => app.world_library.error = Some(error),
