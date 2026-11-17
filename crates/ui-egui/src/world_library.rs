@@ -4,12 +4,41 @@
 //! by opaque asset IDs and belongs in host-backed storage, never in preferences or a document.
 
 use serde::{Deserialize, Serialize};
+use std::io::{self, Write};
 
 /// Current on-disk format version for a WorldLibrary.
 pub const LIBRARY_VERSION: u32 = 1;
 
 /// Maximum serialized metadata size accepted from host storage (images are stored separately).
 pub const MAX_LIBRARY_JSON_BYTES: usize = 16 * 1024 * 1024;
+
+/// A writer that stops serialization before metadata can exceed its storage budget.
+struct LimitedWriter {
+    bytes: Vec<u8>,
+}
+
+impl LimitedWriter {
+    fn new() -> Self {
+        Self { bytes: Vec::new() }
+    }
+}
+
+impl Write for LimitedWriter {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let Some(new_len) = self.bytes.len().checked_add(bytes.len()) else {
+            return Err(io::Error::other("world library metadata size overflow"));
+        };
+        if new_len > MAX_LIBRARY_JSON_BYTES {
+            return Err(io::Error::other("world library metadata size limit exceeded"));
+        }
+        self.bytes.extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
 
 /// A collection of world-building records, independent of any open document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -95,11 +124,9 @@ impl WorldLibrary {
     /// Serializes validated metadata for host storage. Binary image data must use the asset store.
     pub fn to_json_bytes(&self) -> Result<Vec<u8>, String> {
         self.validate()?;
-        let bytes = serde_json::to_vec(self).map_err(|error| format!("Could not serialize world library: {error}"))?;
-        if bytes.len() > MAX_LIBRARY_JSON_BYTES {
-            return Err(format!("World library metadata exceeds the {} byte limit", MAX_LIBRARY_JSON_BYTES));
-        }
-        Ok(bytes)
+        let mut writer = LimitedWriter::new();
+        serde_json::to_writer(&mut writer, self).map_err(|error| format!("Could not serialize world library: {error}"))?;
+        Ok(writer.bytes)
     }
 
     /// Loads metadata from host storage, rejecting oversized, malformed or invalid libraries.
