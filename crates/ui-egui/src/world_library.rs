@@ -52,14 +52,14 @@ impl WorldLibrary {
 
         let mut map_ids = std::collections::HashSet::new();
         for map in &self.maps {
-            if map.id.trim().is_empty() || !map_ids.insert(map.id.as_str()) {
+            if map.id.trim() != map.id || map.id.is_empty() || !map_ids.insert(map.id.as_str()) {
                 return Err("Map IDs must be non-empty and unique".into());
             }
         }
 
         let mut point_ids = std::collections::HashSet::new();
         for point in &self.points {
-            if point.id.trim().is_empty() || !point_ids.insert(point.id.as_str()) {
+            if point.id.trim() != point.id || point.id.is_empty() || !point_ids.insert(point.id.as_str()) {
                 return Err("Point-of-interest IDs must be non-empty and unique".into());
             }
             if !map_ids.contains(point.map_id.as_str()) {
@@ -72,7 +72,7 @@ impl WorldLibrary {
 
         let mut character_ids = std::collections::HashSet::new();
         for character in &self.characters {
-            if character.id.trim().is_empty() || !character_ids.insert(character.id.as_str()) {
+            if character.id.trim() != character.id || character.id.is_empty() || !character_ids.insert(character.id.as_str()) {
                 return Err("Character IDs must be non-empty and unique".into());
             }
         }
@@ -158,6 +158,13 @@ mod tests {
                 assert!(decoded.validate().is_ok());
             }
         }
+    }
+
+    #[test]
+    fn validation_rejects_ids_with_surrounding_whitespace() {
+        let mut library = WorldLibrary::new();
+        library.maps.push(MapRecord { id: " map-1 ".into(), ..MapRecord::default() });
+        assert!(library.validate().is_err());
     }
 
     #[test]
