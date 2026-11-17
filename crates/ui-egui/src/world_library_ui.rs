@@ -79,7 +79,7 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
         match app.world_library.section {
             LibrarySection::Maps => {
                 ui.heading("Maps");
-                ui.label("Create a map entry now; image import and interactive map editing are being added next.");
+                ui.label("Create maps and import their background images. Interactive point placement is managed in the Points of interest section.");
                 ui.label("Name");
                 ui.text_edit_singleline(&mut app.world_library.map_name);
                 ui.label("Description");
