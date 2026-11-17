@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 /// Current on-disk format version for a WorldLibrary.
 pub const LIBRARY_VERSION: u32 = 1;
 
+/// Maximum serialized metadata size accepted from host storage (images are stored separately).
+pub const MAX_LIBRARY_JSON_BYTES: usize = 16 * 1024 * 1024;
+
 /// A collection of world-building records, independent of any open document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WorldLibrary {
@@ -50,10 +53,14 @@ impl WorldLibrary {
             return Err(format!("Unsupported world library version: {}", self.version));
         }
 
+        let valid_asset_id = |id: &str| !id.is_empty() && id.trim() == id;
         let mut map_ids = std::collections::HashSet::new();
         for map in &self.maps {
             if map.id.trim() != map.id || map.id.is_empty() || !map_ids.insert(map.id.as_str()) {
                 return Err("Map IDs must be non-empty and unique".into());
+            }
+            if !valid_asset_id(&map.image_asset_id) {
+                return Err(format!("Map {} has an invalid image asset ID", map.id));
             }
         }
 
@@ -65,6 +72,9 @@ impl WorldLibrary {
             if !map_ids.contains(point.map_id.as_str()) {
                 return Err(format!("Point {} refers to an unknown map", point.id));
             }
+            if point.image_asset_ids.iter().any(|id| !valid_asset_id(id)) {
+                return Err(format!("Point {} has an invalid image asset ID", point.id));
+            }
             if !point.x.is_finite() || !point.y.is_finite() || !(0.0..=1.0).contains(&point.x) || !(0.0..=1.0).contains(&point.y) {
                 return Err(format!("Point {} has coordinates outside the normalized map bounds", point.id));
             }
@@ -75,8 +85,31 @@ impl WorldLibrary {
             if character.id.trim() != character.id || character.id.is_empty() || !character_ids.insert(character.id.as_str()) {
                 return Err("Character IDs must be non-empty and unique".into());
             }
+            if character.portrait_asset_id.as_deref().is_some_and(|id| !valid_asset_id(id)) {
+                return Err(format!("Character {} has an invalid portrait asset ID", character.id));
+            }
         }
         Ok(())
+    }
+
+    /// Serializes validated metadata for host storage. Binary image data must use the asset store.
+    pub fn to_json_bytes(&self) -> Result<Vec<u8>, String> {
+        self.validate()?;
+        let bytes = serde_json::to_vec(self).map_err(|error| format!("Could not serialize world library: {error}"))?;
+        if bytes.len() > MAX_LIBRARY_JSON_BYTES {
+            return Err(format!("World library metadata exceeds the {} byte limit", MAX_LIBRARY_JSON_BYTES));
+        }
+        Ok(bytes)
+    }
+
+    /// Loads metadata from host storage, rejecting oversized, malformed or invalid libraries.
+    pub fn from_json_bytes(bytes: &[u8]) -> Result<Self, String> {
+        if bytes.len() > MAX_LIBRARY_JSON_BYTES {
+            return Err(format!("World library metadata exceeds the {} byte limit", MAX_LIBRARY_JSON_BYTES));
+        }
+        let library: Self = serde_json::from_slice(bytes).map_err(|error| format!("Could not read world library: {error}"))?;
+        library.validate()?;
+        Ok(library)
     }
 }
 
