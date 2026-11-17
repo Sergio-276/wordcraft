@@ -8,6 +8,10 @@ pub struct Services {
     /// The shared UI queues operations; the platform drains them and posts completions. `None`
     /// means the host has no persistent library store available.
     pub world_library: Option<super::world_library::WorldLibraryBridge>,
+    /// Start a dedicated image picker for a map in the standalone world library.
+    pub world_library_image_picker: Option<Box<dyn Fn()>>,
+    /// Images selected for the world library; deliberately separate from document imports.
+    pub world_library_image_inbox: Option<Inbox>,
     /// Desktop: discover configured printers on a worker.
     pub printers: Option<printing::Discover>,
     /// Desktop: submit the PDF with the chosen settings on a worker.
@@ -24,7 +28,7 @@ pub struct Services {
     /// cancelled) through the returned channel once the user answers, and wakes the UI; a dropped
     /// sender counts as cancelled. An `Err` says no system dialog could be shown, and the app shows
     /// its built-in file browser instead (#576). The app shows one dialog at a time ([`file_dialogs`]).
-    pub file_dialog: Option<Box<dyn Fn(FileDialogRequest) -> std::sync::mpsc::Receiver<FileDialogAnswer>>>,
+    pub file_dialog: Option<std::sync::Arc<dyn Fn(FileDialogRequest) -> std::sync::mpsc::Receiver<FileDialogAnswer>>>,
     /// Desktop: stop waiting for the system file dialog the host is showing, if it can (a portal
     /// that never answers). The app calls it when it gives the dialog up (File › Open › Browse in
     /// WordCraft…), so the host closes the request and answers as cancelled.
