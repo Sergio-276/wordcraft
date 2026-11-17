@@ -460,8 +460,44 @@ fn write_prefs(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
 /// pictures and format names (`clipboard`, #45, #584, #687, #833), the system's animation setting
 /// (`animations`), and making WordCraft the default app for Word documents (`default_apps`, #295).
 fn services(file_dialog: file_dialogs::Hook, cancel_file_dialog: file_dialogs::CancelHandle, ctx: &egui::Context) -> Services {
+    let world_library_image_inbox: wordcraft_ui_egui::Inbox = std::sync::Arc::default();
+    let image_inbox = world_library_image_inbox.clone();
+    let image_dialog = file_dialog.clone();
+    let image_ctx = ctx.clone();
     Services {
         world_library: Some(wordcraft_ui_egui::world_library::WorldLibraryBridge::default()),
+        world_library_image_inbox: Some(world_library_image_inbox),
+        world_library_image_picker: Some(Box::new(move || {
+            let rx = image_dialog(wordcraft_ui_egui::FileDialogRequest::Open { purpose: "world_library_image".into() });
+            let inbox = image_inbox.clone();
+            let ctx = image_ctx.clone();
+            let _ = std::thread::Builder::new().name("world library image import".into()).spawn(move || {
+                let picked = match rx.recv() {
+                    Ok(Ok(paths)) => paths.into_iter().next(),
+                    Ok(Err(error)) => {
+                        log::warn!("couldn't open a map image picker: {error}");
+                        None
+                    }
+                    Err(_) => None,
+                };
+                let Some(path) = picked else { return };
+                let path = std::path::PathBuf::from(path);
+                let result = std::fs::metadata(&path).and_then(|metadata| {
+                    if metadata.len() == 0 || metadata.len() > 64 * 1024 * 1024 {
+                        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Map images must be between 1 byte and 64 MiB"));
+                    }
+                    std::fs::read(&path)
+                });
+                match result {
+                    Ok(bytes) => {
+                        let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| "map-image".into());
+                        image_inbox.lock().unwrap_or_else(|error| error.into_inner()).push((name, bytes));
+                        ctx.request_repaint();
+                    }
+                    Err(error) => log::warn!("couldn't read map image: {error}"),
+                }
+            });
+        })),
         file_dialog: Some(file_dialog),
         cancel_file_dialog: Some(Box::new(move || cancel_file_dialog.cancel())),
         printers: Some(print::discover()),
