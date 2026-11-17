@@ -210,6 +210,12 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Back to editor").clicked() {
                     app.world_library.workspace_open = false;
+                    let removed = app.world_library.retain_asset_previews(&std::collections::BTreeSet::new());
+                    ui.ctx().data_mut(|data| {
+                        for asset_id in removed {
+                            data.remove_temp::<egui::TextureHandle>(egui::Id::new(("world_library_map_texture", asset_id.as_str())));
+                        }
+                    });
                 }
             });
         });
