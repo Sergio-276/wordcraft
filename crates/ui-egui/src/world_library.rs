@@ -418,10 +418,15 @@ impl WorldLibraryState {
     }
 
     /// Keep only the image bytes needed by the currently visible library section.
-    pub fn retain_asset_previews(&mut self, needed: &std::collections::BTreeSet<String>) {
+    pub fn retain_asset_previews(&mut self, needed: &std::collections::BTreeSet<String>) -> Vec<String> {
+        let removed = self.map_image_bytes.keys()
+            .filter(|asset_id| !needed.contains(*asset_id))
+            .cloned()
+            .collect();
         self.map_image_bytes.retain(|asset_id, _| needed.contains(asset_id));
         self.requested_map_image_assets.retain(|asset_id| needed.contains(asset_id));
         self.pending_map_image_reads.retain(|_, asset_id| needed.contains(asset_id));
+        removed
     }
 
     /// Queue an image write and remember which map should receive its asset reference.
