@@ -561,6 +561,22 @@ mod tests {
     }
 
     #[test]
+    fn successive_image_writes_use_distinct_asset_ids() {
+        use super::{MapRecord, WorldLibraryBridge, WorldLibraryCommand, WorldLibraryState};
+        let bridge = WorldLibraryBridge::default();
+        let mut state = WorldLibraryState::default();
+        state.library.maps.push(MapRecord { id: "map-1".into(), ..MapRecord::default() });
+        let png_header = vec![0x89, 80, 78, 71, 13, 10, 26, 10];
+        assert!(state.write_map_image(&bridge, "map-1".into(), png_header.clone()).is_ok());
+        assert!(state.write_map_image(&bridge, "map-1".into(), png_header).is_ok());
+        let asset_ids = bridge.take_commands().into_iter().filter_map(|command| match command {
+            WorldLibraryCommand::WriteAsset { asset_id, .. } => Some(asset_id),
+            _ => None,
+        }).collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(asset_ids.len(), 2);
+    }
+
+    #[test]
     fn map_image_reads_are_requested_only_once_while_pending() {
         use super::{MapRecord, WorldLibraryBridge, WorldLibraryCommand, WorldLibraryState};
         let bridge = WorldLibraryBridge::default();
