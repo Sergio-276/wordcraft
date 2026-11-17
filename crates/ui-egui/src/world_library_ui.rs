@@ -297,7 +297,11 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                 if map.image_asset_id.is_empty() {
                                     ui.weak("No map image imported yet.");
                                 } else {
-                                    ui.weak("Map image stored. Open Points of interest to view it and place markers.");
+                                    ui.weak("Map image stored.");
+                                }
+                                if ui.small_button("View map and points").clicked() {
+                                    app.world_library.point_map_id = Some(map_id.clone());
+                                    app.world_library.section = LibrarySection::Points;
                                 }
                             });
                         }
