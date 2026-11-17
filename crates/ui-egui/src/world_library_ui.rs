@@ -245,14 +245,17 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                 });
                                 changed |= ui.add(egui::TextEdit::multiline(&mut map.description).desired_rows(2)).changed();
                                 let map_id = map.id.clone();
-                                let import_label = if app.world_library.pending_map_image_for.is_some() {
+                                let image_import_pending = app.world_library.pending_map_image_for.is_some()
+                                    || app.world_library.pending_point_image_for.is_some()
+                                    || app.world_library.pending_character_image_for.is_some();
+                                let import_label = if image_import_pending {
                                     "Waiting for image…"
                                 } else if map.image_asset_id.is_empty() {
                                     "Import map image"
                                 } else {
                                     "Replace map image"
                                 };
-                                if ui.add_enabled(app.world_library.pending_map_image_for.is_none(), egui::Button::new(import_label)).clicked() {
+                                if ui.add_enabled(!image_import_pending, egui::Button::new(import_label)).clicked() {
                                     app.world_library.pending_map_image_for = Some(map_id);
                                     if let Some(picker) = &app.services.world_library_image_picker {
                                         picker();
