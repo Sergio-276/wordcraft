@@ -182,6 +182,8 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                     if let Some(point) = app.world_library.library.points.iter_mut().find(|point| point.id == point_id) {
                         point.image_asset_ids.push(asset_id);
                         changed = true;
+                    } else if let Some(bridge) = app.services.world_library.clone() {
+                        let _ = app.world_library.delete_library_asset(&bridge, &asset_id);
                     }
                 }
                 Err(error) => app.world_library.error = Some(error),
