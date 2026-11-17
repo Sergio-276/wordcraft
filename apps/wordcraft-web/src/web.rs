@@ -318,7 +318,7 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
                     let bytes = file.read().await;
                     if bytes.is_empty() || bytes.len() > 64 * 1024 * 1024 {
                         log::warn!("map images must be between 1 byte and 64 MiB");
-                        inbox.lock().unwrap_or_else(|error| error.into_inner()).push((String::new(), Vec::new()));
+                        inbox.lock().unwrap_or_else(|error| error.into_inner()).push(("error:Map images must be between 1 byte and 64 MiB".into(), Vec::new()));
                     } else {
                         inbox.lock().unwrap_or_else(|error| error.into_inner()).push((file.file_name(), bytes));
                     }
