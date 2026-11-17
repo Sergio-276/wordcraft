@@ -37,6 +37,7 @@ fn show_map_preview(
     texture: &egui::TextureHandle,
     points: &[PointOfInterest],
     allow_placement: bool,
+    draft_position: Option<(f32, f32)>,
 ) -> Option<(f32, f32)> {
     let source = texture.size_vec2();
     let width = ui.available_width().clamp(180.0, 960.0);
@@ -62,6 +63,10 @@ fn show_map_preview(
             egui::FontId::proportional(12.0),
             egui::Color32::WHITE,
         );
+    }
+    if let Some((x, y)) = draft_position {
+        let position = egui::pos2(rect.left() + x.clamp(0.0, 1.0) * rect.width(), rect.top() + y.clamp(0.0, 1.0) * rect.height());
+        ui.painter().circle_stroke(position, 10.0, egui::Stroke::new(2.0, egui::Color32::YELLOW));
     }
     if allow_placement && response.clicked() {
         if let Some(position) = response.interact_pointer_pos() {
@@ -225,7 +230,7 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                     ui.weak("No map image imported yet.");
                                 } else if let Some((_, asset_id, Some(bytes), points)) = map_previews.iter().find(|(id, _, _, _)| id == &map.id) {
                                     if let Some(texture) = map_texture(ui.ctx(), asset_id, bytes) {
-                                        let _ = show_map_preview(ui, &texture, points, false);
+                                        let _ = show_map_preview(ui, &texture, points, false, None);
                                     } else {
                                         ui.colored_label(ui.visuals().error_fg_color, "This map image could not be decoded.");
                                     }
@@ -273,7 +278,7 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                 .collect::<Vec<_>>();
                             if let Some(texture) = map_texture(ui.ctx(), &map.image_asset_id, &bytes) {
                                 ui.label("Map preview — click the map to position the new point.");
-                                if let Some((x, y)) = show_map_preview(ui, &texture, &points, true) {
+                                if let Some((x, y)) = show_map_preview(ui, &texture, &points, true, Some((app.world_library.point_x, app.world_library.point_y))) {
                                     app.world_library.point_x = x;
                                     app.world_library.point_y = y;
                                 }
