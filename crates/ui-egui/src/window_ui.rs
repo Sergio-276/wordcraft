@@ -167,6 +167,7 @@ impl WordApp {
             // App-wide.
             session: _,
             services: _,
+            world_library: _,
             printing: _,
             print_feedback_seen: _,
             print_gen: _,
