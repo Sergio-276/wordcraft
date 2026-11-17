@@ -261,6 +261,8 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
     let open_inbox = inbox.clone();
     let world_library_image_inbox: Inbox = std::sync::Arc::default();
     let open_library_image_inbox = world_library_image_inbox.clone();
+    let picker_library_image_inbox = world_library_image_inbox.clone();
+    let picker_ctx = ctx.clone();
     let save_ctx = ctx.clone();
     let font_ctx = ctx.clone();
     let font_messages = messages.clone();
@@ -304,7 +306,22 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
         print: Some(Box::new(print_pdf)),
         inbox: Some(inbox),
         world_library_image_inbox: Some(world_library_image_inbox),
-        world_library_image_picker: Some(Box::new(|| {})),
+        world_library_image_picker: Some(Box::new(move || {
+            let inbox = picker_library_image_inbox.clone();
+            let ctx = picker_ctx.clone();
+            let dialog = rfd::AsyncFileDialog::new().add_filter("Pictures", IMAGE_EXTS);
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Some(file) = dialog.pick_file().await {
+                    let bytes = file.read().await;
+                    if bytes.is_empty() || bytes.len() > 64 * 1024 * 1024 {
+                        log::warn!("map images must be between 1 byte and 64 MiB");
+                        return;
+                    }
+                    inbox.lock().unwrap_or_else(|error| error.into_inner()).push((file.file_name(), bytes));
+                    ctx.request_repaint();
+                }
+            });
+        })),
         on_dirty: Some(Box::new(move |d| dirty.set(d))),
         animations_enabled: Some(animations_enabled()),
         store_font: Some(Box::new(font_store::store)),
