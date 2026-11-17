@@ -80,6 +80,9 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                 app.world_library.error = Some("Choose a map before importing its image.".into());
                 continue;
             };
+            if bytes.is_empty() {
+                continue;
+            }
             if let Some(bridge) = app.services.world_library.clone() {
                 if let Err(error) = app.world_library.write_map_image(&bridge, map_id, bytes) {
                     app.world_library.error = Some(error);
@@ -189,11 +192,19 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                 });
                                 changed |= ui.add(egui::TextEdit::multiline(&mut map.description).desired_rows(2)).changed();
                                 let map_id = map.id.clone();
-                                if ui.button(if map.image_asset_id.is_empty() { "Import map image" } else { "Replace map image" }).clicked() {
+                                let import_label = if app.world_library.pending_map_image_for.is_some() {
+                                    "Waiting for image…"
+                                } else if map.image_asset_id.is_empty() {
+                                    "Import map image"
+                                } else {
+                                    "Replace map image"
+                                };
+                                if ui.add_enabled(app.world_library.pending_map_image_for.is_none(), egui::Button::new(import_label)).clicked() {
                                     app.world_library.pending_map_image_for = Some(map_id);
                                     if let Some(picker) = &app.services.world_library_image_picker {
                                         picker();
                                     } else {
+                                        app.world_library.pending_map_image_for = None;
                                         app.world_library.error = Some("Map image import is unavailable on this platform.".into());
                                     }
                                 }
