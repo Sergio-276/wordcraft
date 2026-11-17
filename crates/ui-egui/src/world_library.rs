@@ -270,7 +270,7 @@ impl WorldLibraryBridge {
 }
 
 fn validate_asset_id(asset_id: &str) -> Result<(), String> {
-    if asset_id.is_empty() || asset_id.trim() != asset_id || asset_id.contains('/') || asset_id.contains('\\\\') || asset_id == "." || asset_id == ".." {
+    if asset_id.is_empty() || asset_id.trim() != asset_id || asset_id.contains('/') || asset_id.contains('\\') || asset_id == "." || asset_id == ".." {
         return Err("Library asset IDs must be non-empty canonical file names".into());
     }
     Ok(())
@@ -279,6 +279,27 @@ fn validate_asset_id(asset_id: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{CharacterRecord, MapRecord, PointOfInterest, WorldLibrary, LIBRARY_VERSION, MAX_LIBRARY_JSON_BYTES};
+
+
+    #[test]
+    fn storage_bridge_delivers_commands_and_correlated_completions() {
+        use super::{WorldLibraryBridge, WorldLibraryCommand, WorldLibraryCompletion};
+        let bridge = WorldLibraryBridge::default();
+        bridge.load_metadata(7);
+        assert_eq!(bridge.take_commands(), vec![WorldLibraryCommand::LoadMetadata { request_id: 7 }]);
+        bridge.complete(WorldLibraryCompletion { request_id: 7, result: Ok(Some(b"{}".to_vec())) });
+        assert_eq!(bridge.take_completions(), vec![WorldLibraryCompletion { request_id: 7, result: Ok(Some(b"{}".to_vec())) }]);
+    }
+
+    #[test]
+    fn storage_bridge_rejects_invalid_metadata_and_asset_paths() {
+        use super::WorldLibraryBridge;
+        let bridge = WorldLibraryBridge::default();
+        assert!(bridge.save_metadata(1, b"{invalid}".to_vec()).is_err());
+        assert!(bridge.read_asset(2, "../outside.png".into()).is_err());
+        assert!(bridge.write_asset(3, "folder/image.png".into(), vec![1]).is_err());
+        assert!(bridge.take_commands().is_empty());
+    }
 
     #[test]
     fn library_round_trips_as_versioned_json() {
