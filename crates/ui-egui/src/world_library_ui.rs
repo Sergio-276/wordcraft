@@ -158,17 +158,10 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
         if let Some((map_id, asset_id)) = app.world_library.pending_map_image_writes.remove(&completion.request_id) {
             match completion.result {
                 Ok(_) => {
-                    let previous = app.world_library.library.maps.iter_mut()
-                        .find(|map| map.id == map_id)
-                        .map(|map| std::mem::replace(&mut map.image_asset_id, asset_id.clone()));
-                    if let Some(previous) = previous {
-                        if !previous.is_empty() && previous != asset_id {
-                            if let Some(bridge) = app.services.world_library.clone() {
-                                if let Err(error) = app.world_library.delete_library_asset(&bridge, &previous) {
-                                    app.world_library.error = Some(error);
-                                }
-                            }
-                        }
+                    if let Some(map) = app.world_library.library.maps.iter_mut().find(|map| map.id == map_id) {
+                        // Keep the previous asset until metadata persistence is confirmed; a
+                        // failed metadata save must not leave the last saved map image missing.
+                        map.image_asset_id = asset_id;
                         changed = true;
                     } else if let Some(bridge) = app.services.world_library.clone() {
                         let _ = app.world_library.delete_library_asset(&bridge, &asset_id);
@@ -191,19 +184,9 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
         } else if let Some((character_id, asset_id)) = app.world_library.pending_character_image_writes.remove(&completion.request_id) {
             match completion.result {
                 Ok(_) => {
-                    let previous = app.world_library.library.characters.iter_mut()
-                        .find(|character| character.id == character_id)
-                        .and_then(|character| character.portrait_asset_id.replace(asset_id.clone()));
-                    if app.world_library.library.characters.iter().any(|character| character.id == character_id) {
-                        if let Some(previous) = previous {
-                            if previous != asset_id {
-                                if let Some(bridge) = app.services.world_library.clone() {
-                                    if let Err(error) = app.world_library.delete_library_asset(&bridge, &previous) {
-                                        app.world_library.error = Some(error);
-                                    }
-                                }
-                            }
-                        }
+                    if let Some(character) = app.world_library.library.characters.iter_mut().find(|character| character.id == character_id) {
+                        // Preserve the old portrait until the new metadata reference is saved.
+                        character.portrait_asset_id = Some(asset_id);
                         changed = true;
                     } else if let Some(bridge) = app.services.world_library.clone() {
                         let _ = app.world_library.delete_library_asset(&bridge, &asset_id);
@@ -314,18 +297,10 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                         }
                         if let Some(index) = remove {
                             let map = app.world_library.library.maps.remove(index);
-                            let mut assets = vec![map.image_asset_id];
-                            for point in app.world_library.library.points.iter().filter(|point| point.map_id == map.id) {
-                                assets.extend(point.image_asset_ids.iter().cloned());
-                            }
+                            // Asset cleanup is deferred until metadata persistence can be tied
+                            // to the deletion; keeping an orphan is safer than deleting an asset
+                            // still referenced by the last successfully saved metadata.
                             app.world_library.library.points.retain(|point| point.map_id != map.id);
-                            if let Some(bridge) = app.services.world_library.clone() {
-                                for asset_id in assets {
-                                    if let Err(error) = app.world_library.delete_library_asset(&bridge, &asset_id) {
-                                        app.world_library.error = Some(error);
-                                    }
-                                }
-                            }
                             changed = true;
                         }
                     });
@@ -451,14 +426,7 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                             });
                         }
                         if let Some(index) = remove {
-                            let point = app.world_library.library.points.remove(index);
-                            if let Some(bridge) = app.services.world_library.clone() {
-                                for asset_id in point.image_asset_ids {
-                                    if let Err(error) = app.world_library.delete_library_asset(&bridge, &asset_id) {
-                                        app.world_library.error = Some(error);
-                                    }
-                                }
-                            }
+                            app.world_library.library.points.remove(index);
                             changed = true;
                         }
                     });
@@ -525,14 +493,7 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                             });
                         }
                         if let Some(index) = remove {
-                            let character = app.world_library.library.characters.remove(index);
-                            if let Some(bridge) = app.services.world_library.clone() {
-                                if let Some(asset_id) = character.portrait_asset_id {
-                                    if let Err(error) = app.world_library.delete_library_asset(&bridge, &asset_id) {
-                                        app.world_library.error = Some(error);
-                                    }
-                                }
-                            }
+                            app.world_library.library.characters.remove(index);
                             changed = true;
                         }
                     });
