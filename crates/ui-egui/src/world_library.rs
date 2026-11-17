@@ -456,12 +456,14 @@ mod tests {
         assert!(state.write_map_image(&bridge, "map-1".into(), vec![1, 2, 3]).is_ok());
         let commands = bridge.take_commands();
         assert_eq!(commands.len(), 1);
-        match &commands[0] {
-            WorldLibraryCommand::WriteAsset { request_id, asset_id, bytes } => {
-                assert_eq!(state.pending_map_image_writes.get(request_id), Some(&("map-1".into(), asset_id.clone())));
-                assert_eq!(bytes, &vec![1, 2, 3]);
-            }
-            _ => panic!("expected a map image asset write"),
+        let write = commands.into_iter().find_map(|command| match command {
+            WorldLibraryCommand::WriteAsset { request_id, asset_id, bytes } => Some((request_id, asset_id, bytes)),
+            _ => None,
+        });
+        assert!(write.is_some());
+        if let Some((request_id, asset_id, bytes)) = write {
+            assert_eq!(state.pending_map_image_writes.get(&request_id), Some(&("map-1".into(), asset_id)));
+            assert_eq!(bytes, vec![1, 2, 3]);
         }
     }
 
