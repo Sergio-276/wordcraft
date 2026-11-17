@@ -151,8 +151,10 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                     }
                                 });
                                 ui.small(map_name);
-                                ui.label(&point.description);
-                                ui.weak(format!("Position: {:.0}% horizontal, {:.0}% vertical", point.x * 100.0, point.y * 100.0));
+                                changed |= ui.text_edit_singleline(&mut app.world_library.library.points[index].name).changed();
+                                changed |= ui.add(egui::TextEdit::multiline(&mut app.world_library.library.points[index].description).desired_rows(2)).changed();
+                                changed |= ui.add(egui::Slider::new(&mut app.world_library.library.points[index].x, 0.0..=1.0).text("Horizontal")).changed();
+                                changed |= ui.add(egui::Slider::new(&mut app.world_library.library.points[index].y, 0.0..=1.0).text("Vertical")).changed();
                             });
                         }
                         if let Some(index) = remove {
@@ -189,14 +191,12 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                         for (index, character) in app.world_library.library.characters.iter().enumerate() {
                             ui.group(|ui| {
                                 ui.horizontal(|ui| {
-                                    ui.strong(&character.name);
+                                    changed |= ui.text_edit_singleline(&mut app.world_library.library.characters[index].name).changed();
                                     if ui.small_button("Delete").clicked() {
                                         remove = Some(index);
                                     }
                                 });
-                                if !character.description.is_empty() {
-                                    ui.label(&character.description);
-                                }
+                                changed |= ui.add(egui::TextEdit::multiline(&mut app.world_library.library.characters[index].description).desired_rows(2)).changed();
                             });
                         }
                         if let Some(index) = remove {
