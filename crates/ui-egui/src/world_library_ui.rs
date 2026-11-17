@@ -5,7 +5,7 @@ use crate::world_library::{CharacterRecord, LibrarySection};
 
 pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
     let mut changed = false;
-    egui::CentralPanel::default().show_inside(ui, |ui| {
+    ui.vertical(|ui| {
         ui.horizontal(|ui| {
             ui.heading("World library");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
