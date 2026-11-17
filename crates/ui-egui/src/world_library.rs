@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub const LIBRARY_VERSION: u32 = 1;
 
 /// A collection of world-building records, independent of any open document.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WorldLibrary {
     /// Version used to migrate persisted libraries when the schema changes.
     #[serde(default = "default_library_version")]
@@ -29,10 +29,16 @@ fn default_library_version() -> u32 {
     LIBRARY_VERSION
 }
 
+impl Default for WorldLibrary {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WorldLibrary {
     /// Creates an empty library using the current schema version.
     pub fn new() -> Self {
-        Self { version: LIBRARY_VERSION, ..Self::default() }
+        Self { version: LIBRARY_VERSION, maps: Vec::new(), points: Vec::new(), characters: Vec::new() }
     }
 
     /// Checks identifiers, map references and normalized marker coordinates.
