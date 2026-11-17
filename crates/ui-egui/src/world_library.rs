@@ -293,6 +293,8 @@ pub struct WorldLibraryState {
     pending_saves: std::collections::BTreeSet<u64>,
     /// Asset-operation completions are retained for the UI instead of being discarded by tick.
     asset_completions: Vec<WorldLibraryCompletion>,
+    pending_map_image_writes: std::collections::BTreeMap<u64, (String, String)>,
+    pub pending_map_image_for: Option<String>,
     pub workspace_open: bool,
     pub section: LibrarySection,
     pub character_name: String,
@@ -317,6 +319,8 @@ impl Default for WorldLibraryState {
             pending_load: None,
             pending_saves: std::collections::BTreeSet::new(),
             asset_completions: Vec::new(),
+            pending_map_image_writes: std::collections::BTreeMap::new(),
+            pending_map_image_for: None,
             workspace_open: false,
             section: LibrarySection::Maps,
             character_name: String::new(),
@@ -385,6 +389,18 @@ impl WorldLibraryState {
     /// Take asset-operation results accumulated by `tick`.
     pub fn take_asset_completions(&mut self) -> Vec<WorldLibraryCompletion> {
         std::mem::take(&mut self.asset_completions)
+    }
+
+    /// Queue an image write and remember which map should receive its asset reference.
+    pub fn write_map_image(&mut self, bridge: &WorldLibraryBridge, map_id: String, bytes: Vec<u8>) -> Result<(), String> {
+        if !self.library.maps.iter().any(|map| map.id == map_id) {
+            return Err("The selected map no longer exists.".into());
+        }
+        let asset_id = format!("map-image-{}", self.next_request_id);
+        let request_id = self.request_id();
+        bridge.write_asset(request_id, asset_id.clone(), bytes)?;
+        self.pending_map_image_writes.insert(request_id, (map_id, asset_id));
+        Ok(())
     }
 
     /// Persist the current metadata snapshot through the platform host.
