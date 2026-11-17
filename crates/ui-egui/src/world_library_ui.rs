@@ -116,14 +116,24 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
     }
 
     if let Some(bridge) = app.services.world_library.clone() {
-        let mut asset_ids = app.world_library.library.maps.iter()
-            .map(|map| map.image_asset_id.clone())
-            .filter(|asset_id| !asset_id.is_empty())
-            .collect::<Vec<_>>();
-        asset_ids.extend(app.world_library.library.points.iter()
-            .flat_map(|point| point.image_asset_ids.iter().cloned()));
-        asset_ids.extend(app.world_library.library.characters.iter()
-            .filter_map(|character| character.portrait_asset_id.clone()));
+        // Only load previews for the active section to avoid retaining every large image at once.
+        let mut asset_ids = match app.world_library.section {
+            crate::world_library::LibrarySection::Maps => Vec::new(),
+            crate::world_library::LibrarySection::Points => {
+                let mut ids = app.world_library.point_map_id.as_ref()
+                    .and_then(|map_id| app.world_library.library.maps.iter().find(|map| &map.id == map_id))
+                    .map(|map| (!map.image_asset_id.is_empty()).then(|| map.image_asset_id.clone()))
+                    .flatten()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                ids.extend(app.world_library.library.points.iter()
+                    .flat_map(|point| point.image_asset_ids.iter().cloned()));
+                ids
+            }
+            crate::world_library::LibrarySection::Characters => app.world_library.library.characters.iter()
+                .filter_map(|character| character.portrait_asset_id.clone())
+                .collect(),
+        };
         asset_ids.sort();
         asset_ids.dedup();
         for asset_id in asset_ids {
@@ -228,14 +238,6 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                 if app.world_library.library.maps.is_empty() {
                     ui.label("No maps have been added yet.");
                 } else {
-                    let map_previews = app.world_library.library.maps.iter().map(|map| {
-                        let bytes = app.world_library.map_image_bytes.get(&map.image_asset_id).cloned();
-                        let points = app.world_library.library.points.iter()
-                            .filter(|point| point.map_id == map.id)
-                            .cloned()
-                            .collect::<Vec<_>>();
-                        (map.id.clone(), map.image_asset_id.clone(), bytes, points)
-                    }).collect::<Vec<_>>();
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         let mut remove = None;
                         for (index, map) in app.world_library.library.maps.iter_mut().enumerate() {
@@ -269,14 +271,8 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                                 }
                                 if map.image_asset_id.is_empty() {
                                     ui.weak("No map image imported yet.");
-                                } else if let Some((_, asset_id, Some(bytes), points)) = map_previews.iter().find(|(id, _, _, _)| id == &map.id) {
-                                    if let Some(texture) = map_texture(ui.ctx(), asset_id, bytes) {
-                                        let _ = show_map_preview(ui, &texture, points, false, None);
-                                    } else {
-                                        ui.colored_label(ui.visuals().error_fg_color, "This map image could not be decoded.");
-                                    }
                                 } else {
-                                    ui.weak("Map image stored; loading preview…");
+                                    ui.weak("Map image stored. Open Points of interest to view it and place markers.");
                                 }
                             });
                         }
