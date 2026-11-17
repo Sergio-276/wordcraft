@@ -11,6 +11,64 @@ fn new_id(prefix: &str) -> String {
     format!("{prefix}-{stamp}")
 }
 
+fn map_texture(ctx: &egui::Context, asset_id: &str, bytes: &[u8]) -> Option<egui::TextureHandle> {
+    let cache_id = egui::Id::new(("world_library_map_texture", asset_id));
+    if let Some(texture) = ctx.data(|data| data.get_temp::<egui::TextureHandle>(cache_id)) {
+        return Some(texture);
+    }
+    let image = wordcraft_geom::picture::decode(bytes, wordcraft_geom::MAX_DECODED_BYTES).ok()?;
+    let rgba = image.to_rgba8();
+    let color = egui::ColorImage::from_rgba_unmultiplied(
+        [rgba.width() as usize, rgba.height() as usize],
+        rgba.as_raw(),
+    );
+    let texture = ctx.load_texture(format!("world_library_map_{asset_id}"), color, egui::TextureOptions::LINEAR);
+    ctx.data_mut(|data| data.insert_temp(cache_id, texture.clone()));
+    Some(texture)
+}
+
+fn show_map_preview(
+    ui: &mut egui::Ui,
+    texture: &egui::TextureHandle,
+    points: &[PointOfInterest],
+    allow_placement: bool,
+) -> Option<(f32, f32)> {
+    let source = texture.size_vec2();
+    let width = ui.available_width().clamp(180.0, 960.0);
+    let height = (width * source.y / source.x.max(1.0)).min(560.0).max(120.0);
+    let size = egui::vec2(width, height);
+    let (rect, response) = ui.allocate_exact_size(size, if allow_placement { egui::Sense::click() } else { egui::Sense::hover() });
+    ui.painter().image(
+        texture.id(),
+        rect,
+        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+        egui::Color32::WHITE,
+    );
+    for point in points {
+        let position = egui::pos2(
+            rect.left() + point.x.clamp(0.0, 1.0) * rect.width(),
+            rect.top() + point.y.clamp(0.0, 1.0) * rect.height(),
+        );
+        ui.painter().circle_filled(position, 6.0, egui::Color32::from_rgb(220, 55, 55));
+        ui.painter().text(
+            position + egui::vec2(0.0, -8.0),
+            egui::Align2::CENTER_BOTTOM,
+            &point.name,
+            egui::FontId::proportional(12.0),
+            egui::Color32::WHITE,
+        );
+    }
+    if allow_placement && response.clicked() {
+        if let Some(position) = response.interact_pointer_pos() {
+            return Some((
+                ((position.x - rect.left()) / rect.width()).clamp(0.0, 1.0),
+                ((position.y - rect.top()) / rect.height()).clamp(0.0, 1.0),
+            ));
+        }
+    }
+    None
+}
+
 pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
     let mut changed = false;
 
