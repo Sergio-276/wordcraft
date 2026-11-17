@@ -32,7 +32,7 @@ use wordcraft_ui_egui::{FileDialogAnswer, FileDialogRequest};
 type Request = (FileDialogRequest, Sender<FileDialogAnswer>);
 
 /// The `Services::file_dialog` hook.
-pub type Hook = Box<dyn Fn(FileDialogRequest) -> Receiver<FileDialogAnswer>>;
+pub type Hook = std::sync::Arc<dyn Fn(FileDialogRequest) -> Receiver<FileDialogAnswer>>;
 
 /// Cancels the portal Save dialog the launcher is waiting on, if any.
 ///
@@ -101,7 +101,7 @@ pub struct Launcher {
 /// launcher that shows what it queues.
 pub fn hook(ctx: &egui::Context) -> (Hook, Launcher) {
     let (queue_tx, queue) = channel::<Request>();
-    let hook: Hook = Box::new(move |req| {
+    let hook: Hook = std::sync::Arc::new(move |req| {
         let (answer, rx) = channel();
         // If the launcher is gone, the dropped answer reads as "cancelled" in the app.
         let _ = queue_tx.send((req, answer));
