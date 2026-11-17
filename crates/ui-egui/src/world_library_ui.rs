@@ -136,6 +136,8 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
         };
         asset_ids.sort();
         asset_ids.dedup();
+        let needed = asset_ids.iter().cloned().collect::<std::collections::BTreeSet<_>>();
+        app.world_library.retain_asset_previews(&needed);
         for asset_id in asset_ids {
             if let Err(error) = app.world_library.request_map_image(&bridge, &asset_id) {
                 app.world_library.error = Some(error);
