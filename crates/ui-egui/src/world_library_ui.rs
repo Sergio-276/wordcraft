@@ -32,6 +32,18 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
         }
     }
 
+    if let Some(bridge) = app.services.world_library.clone() {
+        let asset_ids = app.world_library.library.maps.iter()
+            .map(|map| map.image_asset_id.clone())
+            .filter(|asset_id| !asset_id.is_empty())
+            .collect::<Vec<_>>();
+        for asset_id in asset_ids {
+            if let Err(error) = app.world_library.request_map_image(&bridge, &asset_id) {
+                app.world_library.error = Some(error);
+            }
+        }
+    }
+
     let completions = app.world_library.take_asset_completions();
     for completion in completions {
         if let Some((map_id, asset_id)) = app.world_library.pending_map_image_writes.remove(&completion.request_id) {
@@ -42,6 +54,14 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
                         changed = true;
                     }
                 }
+                Err(error) => app.world_library.error = Some(error),
+            }
+        } else if let Some(asset_id) = app.world_library.pending_map_image_reads.remove(&completion.request_id) {
+            match completion.result {
+                Ok(Some(bytes)) => {
+                    app.world_library.map_image_bytes.insert(asset_id, bytes);
+                }
+                Ok(None) => app.world_library.error = Some("A map image is missing from library storage.".into()),
                 Err(error) => app.world_library.error = Some(error),
             }
         }
