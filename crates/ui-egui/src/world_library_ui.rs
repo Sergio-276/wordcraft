@@ -113,10 +113,16 @@ pub(super) fn show(app: &mut WordApp, ui: &mut egui::Ui) {
     }
 
     if let Some(bridge) = app.services.world_library.clone() {
-        let asset_ids = app.world_library.library.maps.iter()
+        let mut asset_ids = app.world_library.library.maps.iter()
             .map(|map| map.image_asset_id.clone())
             .filter(|asset_id| !asset_id.is_empty())
             .collect::<Vec<_>>();
+        asset_ids.extend(app.world_library.library.points.iter()
+            .flat_map(|point| point.image_asset_ids.iter().cloned()));
+        asset_ids.extend(app.world_library.library.characters.iter()
+            .filter_map(|character| character.portrait_asset_id.clone()));
+        asset_ids.sort();
+        asset_ids.dedup();
         for asset_id in asset_ids {
             if let Err(error) = app.world_library.request_map_image(&bridge, &asset_id) {
                 app.world_library.error = Some(error);
