@@ -654,6 +654,8 @@ pub struct WordApp {
     pub session: Session,
     pub ui: UiState,
     pub services: Services,
+    /// Independent maps, points-of-interest and characters library.
+    pub world_library: world_library::WorldLibraryState,
     /// Only a successfully published copy may reuse this window's private fragment.
     pub clipboard_published: bool,
     pub printing: printing::State,
